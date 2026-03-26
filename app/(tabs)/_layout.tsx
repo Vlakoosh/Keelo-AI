@@ -8,16 +8,16 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         sceneStyle: {
-          backgroundColor: "#050505"
+          backgroundColor: "#111111"
         }
       }}
       tabBar={(props) => <AppTabBar {...props} />}
     >
-      <Tabs.Screen name="today" options={{ title: "Today" }} />
       <Tabs.Screen name="food" options={{ title: "Food" }} />
       <Tabs.Screen name="workout" options={{ title: "Workout" }} />
-      <Tabs.Screen name="progress" options={{ title: "Progress" }} />
-      <Tabs.Screen name="ai" options={{ title: "AI" }} />
+      <Tabs.Screen name="today" options={{ href: null }} />
+      <Tabs.Screen name="progress" options={{ href: null }} />
+      <Tabs.Screen name="ai" options={{ href: null }} />
     </Tabs>
   );
 }

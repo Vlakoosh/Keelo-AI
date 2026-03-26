@@ -8,7 +8,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function RootLayout() {
   useEffect(() => {
-    SystemUI.setBackgroundColorAsync("#000000");
+    SystemUI.setBackgroundColorAsync("#111111");
   }, []);
 
   return (
@@ -18,12 +18,13 @@ export default function RootLayout() {
         screenOptions={{
           headerShown: false,
           contentStyle: {
-            backgroundColor: "#000000"
+            backgroundColor: "#111111"
           }
         }}
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="exercises/add" />
+        <Stack.Screen name="routines/create" />
         <Stack.Screen name="+not-found" />
       </Stack>
     </SafeAreaProvider>

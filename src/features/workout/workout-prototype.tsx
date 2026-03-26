@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import ConfettiCannon from "react-native-confetti-cannon";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Keyboard, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, Switch, Text, TextInput, Vibration, View } from "react-native";
+import { Alert, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, Switch, Text, TextInput, Vibration, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 
 import { BottomPopup } from "@/components/bottom-popup";
@@ -21,10 +21,14 @@ import {
 import {
   createExerciseFromCatalogId,
   createSessionFromRoutine,
+  deleteWorkoutRoutine,
+  duplicateWorkoutRoutine,
   initializeWorkoutStorage,
+  loadWorkoutHistory,
   loadWorkoutRoutines,
   saveWorkoutSession
 } from "@/features/workout/storage";
+import type { WorkoutHistoryItem } from "@/features/workout/storage";
 import type { WorkoutView } from "@/features/workout/types";
 
 type Sheet =
@@ -46,7 +50,9 @@ export function WorkoutPrototype() {
   const router = useRouter();
   const isFocused = useIsFocused();
   const [view, setView] = useState<WorkoutView>("library");
+  const [libraryMode, setLibraryMode] = useState<"tracker" | "routines">("tracker");
   const [routines, setRoutines] = useState<WorkoutRoutine[]>([]);
+  const [history, setHistory] = useState<WorkoutHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const [sheet, setSheet] = useState<Sheet>({ type: "none" });
@@ -56,6 +62,7 @@ export function WorkoutPrototype() {
   const [toolRunning, setToolRunning] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [confettiSetId, setConfettiSetId] = useState<string | null>(null);
+  const [showWorkoutHistory, setShowWorkoutHistory] = useState(true);
   const [showMyRoutines, setShowMyRoutines] = useState(true);
 
   useEffect(() => {
@@ -95,11 +102,15 @@ export function WorkoutPrototype() {
 
     async function load() {
       await initializeWorkoutStorage();
-      const storedRoutines = await loadWorkoutRoutines();
+      const [storedRoutines, storedHistory] = await Promise.all([
+        loadWorkoutRoutines(),
+        loadWorkoutHistory()
+      ]);
 
       if (!isMounted) return;
 
       setRoutines(storedRoutines);
+      setHistory(storedHistory);
       setIsLoading(false);
     }
 
@@ -114,6 +125,17 @@ export function WorkoutPrototype() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isFocused || view !== "library") {
+      return;
+    }
+
+    void Promise.all([loadWorkoutRoutines(), loadWorkoutHistory()]).then(([storedRoutines, storedHistory]) => {
+      setRoutines(storedRoutines);
+      setHistory(storedHistory);
+    }).catch((error) => console.error(error));
+  }, [isFocused, view]);
 
   useEffect(() => {
     if (!isFocused || view !== "active" || !session) {
@@ -160,15 +182,37 @@ export function WorkoutPrototype() {
       return;
     }
 
+    if (hasInvalidSets(session)) {
+      Alert.alert("Incomplete sets", "There are incomplete or unapproved sets in this workout.");
+      return;
+    }
+
     await saveWorkoutSession(session);
-    const storedRoutines = await loadWorkoutRoutines();
+    const [storedRoutines, storedHistory] = await Promise.all([
+      loadWorkoutRoutines(),
+      loadWorkoutHistory()
+    ]);
 
     setRoutines(storedRoutines);
+    setHistory(storedHistory);
     Alert.alert("Workout saved", "Saved locally to Keelo on this device.");
     setSession(null);
     setView("library");
     setRest(null);
     setSheet({ type: "none" });
+  }
+
+  function attemptFinishWorkout() {
+    if (!session) {
+      return;
+    }
+
+    if (hasInvalidSets(session)) {
+      Alert.alert("Incomplete sets", "There are incomplete or unapproved sets in this workout.");
+      return;
+    }
+
+    setView("finish");
   }
 
   if (isLoading) {
@@ -182,61 +226,112 @@ export function WorkoutPrototype() {
   if (view === "library") {
     return (
       <View className="flex-1 bg-background">
-        <PageHeader title="Workout" />
+        <PageHeader title="Workouts" />
         <ScrollView keyboardShouldPersistTaps="never" className="flex-1" contentContainerClassName="gap-6 px-5 pb-8 pt-5">
-          <Pressable
-            onPress={() => { setSession(createEmptySession()); setView("active"); }}
-            className="flex-row items-center justify-center gap-3 rounded-card border border-white px-4 py-4"
-          >
-            <Ionicons name="add" size={20} color="#FAFAFA" />
-            <Text className="text-base font-semibold text-text">Start Empty Workout</Text>
-          </Pressable>
-          <View className="gap-4">
-            <Text className="text-xl font-semibold text-text">Routines</Text>
-            <View className="flex-row gap-3">
-              <Pressable
-                onPress={() => Alert.alert("New routine", "Routine creation is next.")}
-                className="flex-1 flex-row items-center justify-center gap-2 rounded-card border border-white px-4 py-3"
-              >
-                <Ionicons name="add" size={18} color="#FAFAFA" />
-                <Text className="text-sm font-semibold text-text">New Routine</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => Alert.alert("Explore", "Routine explore is next.")}
-                className="flex-1 flex-row items-center justify-center gap-2 rounded-card border border-white px-4 py-3"
-              >
-                <Ionicons name="search-outline" size={18} color="#FAFAFA" />
-                <Text className="text-sm font-semibold text-text">Explore</Text>
-              </Pressable>
-            </View>
-          </View>
-          <View className="gap-4">
+          <View className="flex-row">
             <Pressable
-              onPress={() => setShowMyRoutines((current) => !current)}
-              className="flex-row items-center justify-between"
+              onPress={() => setLibraryMode("tracker")}
+              className={`flex-1 items-center border-b pb-3 ${libraryMode === "tracker" ? "border-b-[3px] border-secondary" : "border-border"}`}
             >
-              <View className="flex-row items-center gap-2">
-                <Ionicons
-                  name={showMyRoutines ? "chevron-down" : "chevron-forward"}
-                  size={16}
-                  color="#A3A3A3"
-                />
-                <Text className="text-xl font-semibold text-text">My Routines</Text>
-              </View>
+              <Text className={`text-base font-semibold ${libraryMode === "tracker" ? "text-text" : "text-muted"}`}>Tracker</Text>
             </Pressable>
-            {showMyRoutines ? routines.map((r) => (
-              <View key={r.id} className="gap-4 pb-5">
-                <View className="flex-row items-start justify-between gap-3">
-                  <View className="flex-1"><Text className="text-xl font-semibold text-text">{r.name}</Text>{r.description ? <Text className="mt-2 text-sm leading-6 text-muted">{r.description}</Text> : null}</View>
-                  <Pressable onPress={() => setSheet({ type: "routine", id: r.id })} className="h-11 w-11 items-center justify-center rounded-card border border-white bg-background"><Ionicons name="ellipsis-horizontal" size={18} color="#FAFAFA" /></Pressable>
-                </View>
-                <View className="gap-2 pl-1">{r.exercisePreview.slice(0, 4).map((x) => <Text key={x} className="text-sm text-muted">{x}</Text>)}</View>
-                <PrimaryButton label="Start Routine" onPress={() => { void startRoutine(r.id); }} />
-              </View>
-            )) : null}
+            <Pressable
+              onPress={() => setLibraryMode("routines")}
+              className={`flex-1 items-center border-b pb-3 ${libraryMode === "routines" ? "border-b-[3px] border-secondary" : "border-border"}`}
+            >
+              <Text className={`text-base font-semibold ${libraryMode === "routines" ? "text-text" : "text-muted"}`}>Routines</Text>
+            </Pressable>
           </View>
+
+          {libraryMode === "tracker" ? (
+            <>
+              <Pressable
+                onPress={() => { setSession(createEmptySession()); setView("active"); }}
+                className="items-center justify-center rounded-card bg-secondary px-4 py-4"
+              >
+                <Text className="text-base font-semibold uppercase tracking-[1px] text-text-secondary">Start Empty Workout</Text>
+              </Pressable>
+              <View className="gap-4">
+                <Pressable
+                  onPress={() => setShowWorkoutHistory((current) => !current)}
+                  className="flex-row items-center justify-between"
+                >
+                  <Text className="text-sm font-medium text-muted">Workout History</Text>
+                  <Ionicons
+                    name={showWorkoutHistory ? "chevron-down" : "chevron-forward"}
+                    size={16}
+                    color="#A3A3A3"
+                  />
+                </Pressable>
+                {showWorkoutHistory ? (
+                  history.length > 0 ? (
+                    <View className="gap-4">
+                      {history.map((item) => (
+                        <HistoryTile key={item.id} item={item} onMenuPress={() => Alert.alert("Workout menu", "History actions are next.")} />
+                      ))}
+                    </View>
+                  ) : (
+                    <View className="rounded-card border border-quaternary bg-tertiary px-4 py-5">
+                      <Text className="text-sm text-muted">No workouts yet</Text>
+                    </View>
+                  )
+                ) : null}
+              </View>
+            </>
+          ) : (
+            <>
+              <Pressable
+                onPress={() => router.push("/routines/create")}
+                className="items-center justify-center rounded-card bg-secondary px-4 py-4"
+              >
+                <Text className="text-base font-semibold uppercase tracking-[1px] text-text-secondary">Create New Routine</Text>
+              </Pressable>
+              <View className="gap-4">
+                <Pressable
+                  onPress={() => setShowMyRoutines((current) => !current)}
+                  className="flex-row items-center justify-between"
+                >
+                  <Text className="text-sm font-medium text-muted">My Routines</Text>
+                  <Ionicons
+                    name={showMyRoutines ? "chevron-down" : "chevron-forward"}
+                    size={16}
+                    color="#A3A3A3"
+                  />
+                </Pressable>
+                {showMyRoutines ? (
+                  routines.length > 0 ? (
+                    <View className="gap-4">
+                      {routines.map((routine) => (
+                        <RoutineTile
+                          key={routine.id}
+                          routine={routine}
+                          onMenuPress={() => setSheet({ type: "routine", id: routine.id })}
+                          onStart={() => { void startRoutine(routine.id); }}
+                        />
+                      ))}
+                    </View>
+                  ) : (
+                    <View className="rounded-card border border-quaternary bg-tertiary px-4 py-5">
+                      <Text className="text-sm text-muted">No routines yet</Text>
+                    </View>
+                  )
+                ) : null}
+              </View>
+            </>
+          )}
         </ScrollView>
-        <Popup sheet={sheet} setSheet={setSheet} />
+        <Popup
+          sheet={sheet}
+          setSheet={setSheet}
+          onRefreshLibrary={async () => {
+            const [storedRoutines, storedHistory] = await Promise.all([
+              loadWorkoutRoutines(),
+              loadWorkoutHistory()
+            ]);
+            setRoutines(storedRoutines);
+            setHistory(storedHistory);
+          }}
+        />
       </View>
     );
   }
@@ -246,20 +341,37 @@ export function WorkoutPrototype() {
   return (
     <View className="flex-1 bg-background">
       <PageHeader
-        title={view === "finish" ? "Workout Finished" : session.name}
+        title={view === "finish" ? "Workout Finished" : "Track Workout"}
         onBack={() => (view === "finish" ? setView("active") : (setSession(null), setView("library"), setRest(null), setSheet({ type: "none" })))}
-        rightSlot={view === "active" ? <><Pressable onPress={() => setSheet({ type: "timer" })} className="h-11 w-11 items-center justify-center"><Ionicons name="timer-outline" size={22} color="#FAFAFA" /></Pressable><Pressable onPress={() => setView("finish")} className="rounded-card bg-accent px-4 py-2"><Text className="text-lg font-semibold text-background">Finish</Text></Pressable></> : undefined}
+        rightSlot={view === "active" ? <><Pressable onPress={() => setSheet({ type: "timer" })} className="h-11 w-11 items-center justify-center"><Ionicons name="timer-outline" size={22} color="#FAFAFA" /></Pressable><Pressable onPress={attemptFinishWorkout} className="px-1 py-2"><Text className="text-base font-semibold uppercase tracking-[1px] text-secondary">Save</Text></Pressable></> : undefined}
       />
       {view === "active" ? (
-        <ScrollView keyboardShouldPersistTaps="never" className="flex-1" contentContainerClassName="gap-8 px-5 pb-10 pt-4">
-          <View className="flex-row gap-3">
-            <Metric label="Duration" value={fmt(secs)} />
-            <Metric label="Volume" value={`${sum.volume.toFixed(0)} kg`} />
+        <ScrollView keyboardShouldPersistTaps="never" className="flex-1" contentContainerClassName="gap-6 px-5 pb-10 pt-4">
+          <View className="gap-2">
+            <TextInput
+              value={session.name}
+              onChangeText={(text) => setSession((c) => (c ? { ...c, name: text } : c))}
+              placeholder="Workout Name"
+              placeholderTextColor="#A3A3A3"
+              className="py-0 text-3xl font-semibold text-text"
+            />
+            <TextInput
+              multiline
+              value={session.notes}
+              onChangeText={(text) => setSession((c) => (c ? { ...c, notes: text } : c))}
+              placeholder="Add notes or description"
+              placeholderTextColor="#A3A3A3"
+              textAlignVertical="top"
+              className="min-h-[56px] px-0 py-2 text-base text-text"
+            />
+          </View>
+          <View className="flex-row border-y border-tertiary py-4">
+            <Metric label="Duration" value={fmt(secs)} className="border-r border-tertiary" />
+            <Metric label="Volume" value={`${sum.volume.toFixed(0)} kg`} className="border-r border-tertiary" />
             <Metric label="Sets" value={`${sum.sets}`} />
           </View>
-          {session.exercises.length === 0 ? <View className="border-b border-dashed border-border pb-5"><Text className="text-lg font-semibold text-text">No exercises yet</Text><Text className="mt-2 text-sm leading-6 text-muted">Empty workouts are supported. We can wire add-exercise flows next.</Text></View> : null}
-          {session.exercises.map((e, i) => <ExerciseCard key={e.id} exercise={e} index={i} activeRestSeconds={rest?.exerciseId === e.id ? rest.left : null} confettiSetId={confettiSetId} clearConfetti={() => setConfettiSetId(null)} updateExercise={updateExercise} updateSet={updateSet} addSet={() => updateExercise(e.id, (x) => ({ ...x, sets: [...x.sets, { id: `${x.id}-${x.sets.length + 1}`, type: "normal", previous: x.sets[x.sets.length - 1]?.previous ?? "No data", enteredWeight: "", reps: "", weightPlaceholder: x.sets[x.sets.length - 1]?.weightPlaceholder ?? x.sets[x.sets.length - 1]?.enteredWeight ?? "", repsPlaceholder: x.sets[x.sets.length - 1]?.repsPlaceholder ?? x.sets[x.sets.length - 1]?.reps ?? "", completed: false, unit: x.sets[x.sets.length - 1]?.unit ?? "kg", pulleyMultiplier: x.sets[x.sets.length - 1]?.pulleyMultiplier ?? 1 }] }))} openSheet={setSheet} onCheck={(setId, done) => { const nextSet = e.sets.find((s) => s.id === setId); const shouldCelebrate = Boolean(done && nextSet && medalText({ ...nextSet, completed: true }, e)); updateSet(e.id, setId, (s) => ({ ...s, completed: done })); if (done && e.restTimerSeconds > 0) setRest({ exerciseId: e.id, left: e.restTimerSeconds }); if (shouldCelebrate) setConfettiSetId(setId); }} />)}
-          <PrimaryButton label="Add Exercise" variant="secondary" onPress={() => router.push("/exercises/add")} />
+          {session.exercises.map((e) => <ExerciseCard key={e.id} exercise={e} activeRestSeconds={rest?.exerciseId === e.id ? rest.left : null} confettiSetId={confettiSetId} clearConfetti={() => setConfettiSetId(null)} updateExercise={updateExercise} updateSet={updateSet} addSet={() => updateExercise(e.id, (x) => ({ ...x, sets: [...x.sets, { id: `${x.id}-${x.sets.length + 1}`, type: "normal", previous: x.sets[x.sets.length - 1]?.previous ?? "No data", enteredWeight: "", reps: "", weightPlaceholder: x.sets[x.sets.length - 1]?.weightPlaceholder ?? x.sets[x.sets.length - 1]?.enteredWeight ?? "", repsPlaceholder: x.sets[x.sets.length - 1]?.repsPlaceholder ?? x.sets[x.sets.length - 1]?.reps ?? "", completed: false, unit: x.sets[x.sets.length - 1]?.unit ?? "kg", pulleyMultiplier: x.sets[x.sets.length - 1]?.pulleyMultiplier ?? 1 }] }))} openSheet={setSheet} onCheck={(setId, done) => { const updatedExercise = { ...e, sets: e.sets.map((set) => set.id === setId ? { ...set, completed: done } : set) }; const shouldCelebrate = Boolean(done && getMedalMap(updatedExercise)[setId]); updateSet(e.id, setId, (s) => ({ ...s, completed: done })); if (done && e.restTimerSeconds > 0) setRest({ exerciseId: e.id, left: e.restTimerSeconds }); if (shouldCelebrate) setConfettiSetId(setId); }} />)}
+          <PrimaryButton label="Add Exercise" onPress={() => router.push("/exercises/add")} />
         </ScrollView>
       ) : (
         <ScrollView keyboardShouldPersistTaps="never" className="flex-1" contentContainerClassName="gap-5 px-5 pb-10 pt-5">
@@ -274,6 +386,14 @@ export function WorkoutPrototype() {
         setSheet={setSheet}
         session={session}
         setSession={setSession}
+        onRefreshLibrary={async () => {
+          const [storedRoutines, storedHistory] = await Promise.all([
+            loadWorkoutRoutines(),
+            loadWorkoutHistory()
+          ]);
+          setRoutines(storedRoutines);
+          setHistory(storedHistory);
+        }}
         setToolRunning={setToolRunning}
         setToolSeconds={setToolSeconds}
         toolRunning={toolRunning}
@@ -290,6 +410,7 @@ function Popup({
   setSheet,
   session,
   setSession,
+  onRefreshLibrary,
   setToolRunning,
   setToolSeconds,
   toolRunning,
@@ -301,6 +422,7 @@ function Popup({
   setSheet: (sheet: Sheet) => void;
   session?: WorkoutSession | null;
   setSession?: React.Dispatch<React.SetStateAction<WorkoutSession | null>>;
+  onRefreshLibrary?: () => Promise<void>;
   setToolRunning?: React.Dispatch<React.SetStateAction<boolean>>;
   setToolSeconds?: React.Dispatch<React.SetStateAction<number>>;
   toolRunning?: boolean;
@@ -308,6 +430,7 @@ function Popup({
   timerMode?: "timer" | "stopwatch";
   setTimerMode?: React.Dispatch<React.SetStateAction<"timer" | "stopwatch">>;
 }) {
+  const router = useRouter();
   return (
     <BottomPopup
       visible={sheet.type !== "none"}
@@ -315,7 +438,7 @@ function Popup({
       subtitle={sheet.type === "set" ? "Warmup and drop sets do not increment the main working-set count." : sheet.type === "weight" ? "Switch unit or pulley ratio without losing the logged machine weight." : sheet.type === "timer" ? "Use a countdown between sets or switch to stopwatch mode." : undefined}
       onClose={() => setSheet({ type: "none" })}
     >
-      {sheet.type === "routine" ? <View className="gap-3"><PrimaryButton label="Duplicate routine" variant="secondary" onPress={() => Alert.alert("Duplicate routine", "Routine duplication is next.")} /><PrimaryButton label="Edit routine" variant="secondary" onPress={() => Alert.alert("Edit routine", "Routine editing is next.")} /><PrimaryButton label="Delete routine" variant="danger" onPress={() => Alert.alert("Delete routine", "Routine deletion still needs its SQLite action.")} /></View> : null}
+      {sheet.type === "routine" ? <View className="gap-3"><PrimaryButton label="Duplicate routine" variant="secondary" onPress={() => { void duplicateWorkoutRoutine(sheet.id).then(async () => { await onRefreshLibrary?.(); setSheet({ type: "none" }); }).catch((error) => console.error(error)); }} /><PrimaryButton label="Edit routine" variant="secondary" onPress={() => { setSheet({ type: "none" }); router.push({ pathname: "/routines/create", params: { routineId: sheet.id } }); }} /><PrimaryButton label="Delete routine" variant="danger" onPress={() => { void deleteWorkoutRoutine(sheet.id).then(async () => { await onRefreshLibrary?.(); setSheet({ type: "none" }); }).catch((error) => console.error(error)); }} /></View> : null}
       {sheet.type === "exercise" ? <View className="gap-3"><PrimaryButton label="Move exercise up" variant="secondary" onPress={() => reorder(session ?? null, setSession, sheet.id, -1, setSheet)} /><PrimaryButton label="Move exercise down" variant="secondary" onPress={() => reorder(session ?? null, setSession, sheet.id, 1, setSheet)} /><PrimaryButton label="Replace exercise" variant="secondary" onPress={() => Alert.alert("Replace exercise", "Exercise library hookup is next.")} /><PrimaryButton label="Remove exercise" variant="danger" onPress={() => { setSession?.((c) => c ? { ...c, exercises: c.exercises.filter((e) => e.id !== sheet.id) } : c); setSheet({ type: "none" }); }} /></View> : null}
       {sheet.type === "set" ? <View className="gap-3">{(["warmup", "drop", "failure", "normal"] as const).map((type) => <PrimaryButton key={type} label={cap(type)} variant="secondary" onPress={() => { setSession?.((c) => c ? { ...c, exercises: c.exercises.map((e) => e.id === sheet.exerciseId ? { ...e, sets: e.sets.map((s) => s.id === sheet.setId ? { ...s, type } : s) } : e) } : c); setSheet({ type: "none" }); }} />)}<PrimaryButton label="Delete set" variant="danger" onPress={() => { setSession?.((c) => c ? { ...c, exercises: c.exercises.map((e) => e.id === sheet.exerciseId ? { ...e, sets: e.sets.filter((s) => s.id !== sheet.setId) } : e) } : c); setSheet({ type: "none" }); }} /></View> : null}
       {sheet.type === "weight" ? <WeightSheet sheet={sheet} session={session} setSession={setSession} setSheet={setSheet} /> : null}
@@ -355,7 +478,6 @@ type PopupProps = Parameters<typeof Popup>[0];
 
 function ExerciseCard({
   exercise,
-  index,
   activeRestSeconds,
   confettiSetId,
   clearConfetti,
@@ -366,7 +488,6 @@ function ExerciseCard({
   onCheck
 }: {
   exercise: WorkoutExercise;
-  index: number;
   activeRestSeconds: number | null;
   confettiSetId: string | null;
   clearConfetti: () => void;
@@ -376,38 +497,122 @@ function ExerciseCard({
   openSheet: (sheet: Sheet) => void;
   onCheck: (setId: string, done: boolean) => void;
 }) {
-  const medals = Object.fromEntries(exercise.sets.map((s) => [s.id, medalText(s, exercise)]));
+  const medals = getMedalMap(exercise);
   const displayUnit = exercise.sets[0]?.unit ?? "kg";
   return (
-    <View className="gap-5 border-b border-border pb-8">
-      <View className="flex-row items-start justify-between gap-3">
-        <View className="flex-1 flex-row items-start gap-4">
-          <View className="mt-1 h-12 w-12 items-center justify-center rounded-full border border-border">
-            <Ionicons name="barbell-outline" size={20} color="#FAFAFA" />
-          </View>
-          <View className="flex-1">
-            <Text className="text-xl font-semibold text-text">{exercise.name}</Text>
-            <Text className="mt-1 text-sm text-muted">Exercise {index + 1}</Text>
-          </View>
-        </View>
-        <Pressable onPress={() => openSheet({ type: "exercise", id: exercise.id })} className="h-11 w-11 items-center justify-center"><Ionicons name="ellipsis-horizontal" size={18} color="#FAFAFA" /></Pressable>
+    <View className="gap-4 border-b border-tertiary py-5">
+      <View className="flex-row items-center justify-between gap-3">
+        <Text className="flex-1 text-xl font-semibold text-text">{exercise.name}</Text>
+        <Pressable onPress={() => openSheet({ type: "exercise", id: exercise.id })} className="h-10 w-10 items-center justify-center">
+          <Ionicons name="ellipsis-horizontal" size={18} color="#FAFAFA" />
+        </Pressable>
       </View>
-      <NotesField value={exercise.sessionNotes} onChangeText={(text) => updateExercise(exercise.id, (x) => ({ ...x, sessionNotes: text }))} />
-      <Pressable onPress={() => openSheet({ type: "rest", exerciseId: exercise.id })} className="flex-row items-center justify-between border-b border-border pb-3"><View className="flex-row items-center gap-2"><Text className="text-sm font-semibold text-text">Rest Timer :</Text>{activeRestSeconds !== null ? <Text className="text-sm font-semibold text-carbs">{fmt(activeRestSeconds)}</Text> : null}</View><Text className="text-sm text-muted">{exercise.restTimerSeconds === 0 ? "OFF" : `${exercise.restTimerSeconds}s`}</Text></Pressable>
-      <View>
-        <View className="flex-row border-b border-border py-3">
-          <Hdr label="SET" className="w-12 text-center" />
-          <Hdr label="PREVIOUS" className="flex-1 text-center" />
-          <Pressable onPress={() => openSheet({ type: "weight", exerciseId: exercise.id })} className="w-24 flex-row items-center justify-center gap-1">
-            <Hdr label={displayUnit} className="text-center" />
-            <Ionicons name="swap-horizontal" size={12} color="#A3A3A3" />
-          </Pressable>
-          <Hdr label="REPS" className="w-16 text-center" />
-          <View className="w-14 items-center"><Ionicons name="checkmark" size={16} color="#A3A3A3" /></View>
+      <Pressable onPress={() => openSheet({ type: "rest", exerciseId: exercise.id })} className="flex-row items-center justify-between">
+        <View className="flex-row items-center gap-2">
+          <Text className="text-sm font-medium text-muted">Rest Timer</Text>
+          {activeRestSeconds !== null ? <Text className="text-sm font-semibold text-carbs">{fmt(activeRestSeconds)}</Text> : null}
         </View>
-        {exercise.sets.map((set) => <View key={set.id} className="relative flex-row items-center border-b border-border py-3 last:border-b-0">{confettiSetId === set.id ? <View pointerEvents="none" className="absolute left-6 top-3 z-10"><ConfettiCannon count={8} origin={{ x: 0, y: 0 }} fadeOut autoStart explosionSpeed={120} fallSpeed={1400} onAnimationEnd={clearConfetti} /></View> : null}<Pressable onPress={() => medals[set.id] ? Alert.alert("Set medal", medals[set.id]) : openSheet({ type: "set", exerciseId: exercise.id, setId: set.id })} className="w-12 items-center">{medals[set.id] ? <Ionicons name="trophy" size={18} color="#FACC15" /> : <SetIndicator set={set} sets={exercise.sets} />}</Pressable><Text className="flex-1 px-2 text-center text-sm leading-5 text-muted">{set.previous}</Text><View className="w-24 px-2"><TextInput value={set.enteredWeight} keyboardType="decimal-pad" onChangeText={(text) => updateSet(exercise.id, set.id, (x) => ({ ...x, enteredWeight: text }))} onBlur={() => Keyboard.dismiss()} className="py-1 text-center text-sm font-semibold text-text" placeholder={set.weightPlaceholder || "0"} placeholderTextColor="#737373" /></View><TextInput value={set.reps} keyboardType="numeric" onChangeText={(text) => updateSet(exercise.id, set.id, (x) => ({ ...x, reps: text }))} onBlur={() => Keyboard.dismiss()} className="w-16 px-2 text-center text-sm font-semibold text-text" placeholder={set.repsPlaceholder || "0"} placeholderTextColor="#737373" /><View className="w-14 items-center"><Pressable onPress={() => onCheck(set.id, !set.completed)} className={`h-9 w-9 items-center justify-center rounded-full border ${set.completed ? "border-protein bg-protein" : "border-border bg-background"}`}><Ionicons name="checkmark" size={18} color={set.completed ? "#000000" : "#737373"} /></Pressable></View></View>)}
+        <Text className="text-sm text-muted">{exercise.restTimerSeconds === 0 ? "OFF" : `${exercise.restTimerSeconds}s`}</Text>
+      </Pressable>
+      <View className="py-3">
+        <View className="mb-3 flex-row items-center">
+          <Hdr label="Set" className="w-14 text-center" />
+          <Hdr label="Previous" className="ml-2 flex-1 text-center" />
+          <Pressable onPress={() => openSheet({ type: "weight", exerciseId: exercise.id })} className="ml-2 w-20 flex-row items-center justify-center gap-1">
+            <Hdr label={displayUnit} className="text-center" />
+            <Ionicons name="swap-horizontal" size={12} color="#FF772C" />
+          </Pressable>
+          <Hdr label="Reps" className="ml-2 w-20 text-center" />
+          <View className="ml-2 w-14 items-center"><Ionicons name="checkmark" size={16} color="#A3A3A3" /></View>
+        </View>
+        <View className="gap-3">
+          {exercise.sets.map((set) => (
+            <View key={set.id} className="relative flex-row items-center">
+              {confettiSetId === set.id ? <View pointerEvents="none" className="absolute left-4 top-2 z-10"><ConfettiCannon count={8} origin={{ x: 0, y: 0 }} fadeOut autoStart explosionSpeed={120} fallSpeed={1400} onAnimationEnd={clearConfetti} /></View> : null}
+              <Pressable onPress={() => medals[set.id] ? Alert.alert("Set medal", medals[set.id].join("\n")) : openSheet({ type: "set", exerciseId: exercise.id, setId: set.id })} className="h-12 w-14 items-center justify-center rounded-card bg-tertiary">
+                {medals[set.id] ? <Ionicons name="trophy" size={18} color="#FF772C" /> : <SetIndicator set={set} sets={exercise.sets} />}
+              </Pressable>
+              <View className="ml-2 h-12 flex-1 items-center justify-center rounded-card bg-quaternary px-3">
+                <Text className="text-center text-sm text-text">{set.previous}</Text>
+              </View>
+              <View className="ml-2 h-12 w-20 rounded-card border border-quaternary bg-primary px-3 justify-center">
+                <TextInput value={set.enteredWeight} keyboardType="decimal-pad" onChangeText={(text) => updateSet(exercise.id, set.id, (x) => ({ ...x, enteredWeight: text }))} className="py-0 text-center text-base font-semibold text-text" placeholder={set.weightPlaceholder || "0"} placeholderTextColor="#737373" />
+              </View>
+              <View className="ml-2 h-12 w-20 rounded-card border border-quaternary bg-primary px-3 justify-center">
+                <TextInput value={set.reps} keyboardType="numeric" onChangeText={(text) => updateSet(exercise.id, set.id, (x) => ({ ...x, reps: text }))} className="py-0 text-center text-base font-semibold text-text" placeholder={set.repsPlaceholder || "0"} placeholderTextColor="#737373" />
+              </View>
+              <View className="ml-2 w-14 items-center">
+                <Pressable onPress={() => onCheck(set.id, !set.completed)} className={`h-12 w-14 items-center justify-center rounded-card border ${set.completed ? "border-secondary bg-primary" : "border-quaternary bg-primary"}`}>
+                  <Ionicons name="checkmark" size={18} color="#FF772C" />
+                </Pressable>
+              </View>
+            </View>
+          ))}
+        </View>
       </View>
       <PrimaryButton label="Add set" variant="secondary" onPress={addSet} />
+    </View>
+  );
+}
+
+function HistoryTile({
+  item,
+  onMenuPress
+}: {
+  item: WorkoutHistoryItem;
+  onMenuPress: () => void;
+}) {
+  return (
+    <View className="rounded-card border border-quaternary bg-tertiary px-4 py-4">
+      <View className="flex-row items-start justify-between gap-3">
+        <View className="flex-1">
+          <Text className="text-xl font-semibold text-text">{item.name}</Text>
+          <Text className="mt-2 text-sm text-muted">Exercises</Text>
+        </View>
+        <Pressable onPress={onMenuPress} className="h-10 w-10 items-center justify-center">
+          <Ionicons name="ellipsis-horizontal" size={18} color="#FAFAFA" />
+        </Pressable>
+      </View>
+      <Text numberOfLines={2} ellipsizeMode="tail" className="mt-2 text-sm leading-6 text-muted">
+        {item.exercisePreview.join(", ")}
+      </Text>
+      <View className="mt-4 border-t border-quaternary pt-4">
+        <View className="flex-row">
+          <Metric label="Duration" value={fmt(item.durationSeconds)} className="border-r border-quaternary" />
+          <Metric label="Sets" value={`${item.setCount}`} className="border-r border-quaternary" />
+          <Metric label="Weight" value={`${item.totalWeight.toFixed(0)} kg`} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function RoutineTile({
+  routine,
+  onMenuPress,
+  onStart
+}: {
+  routine: WorkoutRoutine;
+  onMenuPress: () => void;
+  onStart: () => void;
+}) {
+  return (
+    <View className="rounded-card border border-quaternary bg-tertiary px-4 py-4">
+      <View className="flex-row items-start justify-between gap-3">
+        <View className="flex-1">
+          <Text className="text-xl font-semibold text-text">{routine.name}</Text>
+          <Text className="mt-2 text-sm text-muted">Exercises</Text>
+        </View>
+        <Pressable onPress={onMenuPress} className="h-10 w-10 items-center justify-center">
+          <Ionicons name="ellipsis-horizontal" size={18} color="#FAFAFA" />
+        </Pressable>
+      </View>
+      <Text numberOfLines={2} ellipsizeMode="tail" className="mt-2 text-sm leading-6 text-muted">
+        {routine.exercisePreview.join(", ")}
+      </Text>
+      <View className="mt-4">
+        <PrimaryButton label="START ROUTINE" variant="secondary" onPress={onStart} />
+      </View>
     </View>
   );
 }
@@ -534,26 +739,26 @@ function NotesField({ value, onChangeText }: { value: string; onChangeText: (tex
 
 function SetIndicator({ set, sets }: { set: WorkoutExercise["sets"][number]; sets: WorkoutExercise["sets"] }) {
   if (set.type === "failure") {
-    return <Text className="text-center text-base font-semibold text-red-500">F</Text>;
+    return <Text className="text-left text-base font-semibold text-red-500">F</Text>;
   }
 
   if (set.type === "warmup") {
-    return <Text className="text-center text-base font-semibold text-yellow-400">W</Text>;
+    return <Text className="text-left text-base font-semibold text-yellow-400">W</Text>;
   }
 
   if (set.type === "drop") {
-    return <Text className="text-center text-base font-semibold text-carbs">D</Text>;
+    return <Text className="text-left text-base font-semibold text-carbs">D</Text>;
   }
 
-  return <Text className="text-center text-base font-semibold text-text">{setLabel(sets, set.id)}</Text>;
+  return <Text className="text-left text-base font-semibold text-text">{setLabel(sets, set.id)}</Text>;
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return <View className="flex-1 border-b border-border pb-4"><Text className="text-xs font-semibold uppercase tracking-[2px] text-muted">{label}</Text><Text className="mt-3 text-xl font-semibold text-text">{value}</Text></View>;
+function Metric({ label, value, className = "" }: { label: string; value: string; className?: string }) {
+  return <View className={`flex-1 items-center justify-center ${className}`}><Text className="text-2xl font-semibold text-text">{value}</Text><Text className="mt-2 text-sm text-muted">{label}</Text></View>;
 }
 
 function Hdr({ label, className = "" }: { label: string; className?: string }) {
-  return <Text className={`${className} text-[11px] font-semibold uppercase tracking-[1.5px] text-muted`}>{label}</Text>;
+  return <Text className={`${className} text-sm font-medium text-muted`}>{label}</Text>;
 }
 
 function setLabel(sets: WorkoutExercise["sets"], setId: string) {
@@ -565,20 +770,49 @@ function setLabel(sets: WorkoutExercise["sets"], setId: string) {
   return "?";
 }
 
-function medalText(set: WorkoutExercise["sets"][number], exercise: WorkoutExercise) {
-  if (!set.completed) {
-    return "";
+function getMedalMap(exercise: WorkoutExercise) {
+  const medalMap: Record<string, string[]> = {};
+  const candidates = exercise.sets
+    .filter((set) => set.completed && set.enteredWeight.trim() && set.reps.trim())
+    .map((set) => {
+      const weight = Number(set.enteredWeight) * set.pulleyMultiplier;
+      const reps = Number(set.reps);
+      return {
+        id: set.id,
+        weight,
+        volume: weight * reps,
+        pr: weight * (1 + reps / 30)
+      };
+    });
+
+  const topWeight = candidates.reduce<typeof candidates[number] | null>((best, current) => (!best || current.weight > best.weight ? current : best), null);
+  const topVolume = candidates.reduce<typeof candidates[number] | null>((best, current) => (!best || current.volume > best.volume ? current : best), null);
+  const topPr = candidates.reduce<typeof candidates[number] | null>((best, current) => (!best || current.pr > best.pr ? current : best), null);
+
+  if (topWeight && topWeight.weight > exercise.benchmarks.bestWeight) {
+    medalMap[topWeight.id] = [...(medalMap[topWeight.id] ?? []), `Highest weight +${(topWeight.weight - exercise.benchmarks.bestWeight).toFixed(1)}`];
+  }
+  if (topVolume && topVolume.volume > exercise.benchmarks.bestVolume) {
+    medalMap[topVolume.id] = [...(medalMap[topVolume.id] ?? []), `Highest set volume +${(topVolume.volume - exercise.benchmarks.bestVolume).toFixed(1)}`];
+  }
+  if (topPr && topPr.pr > exercise.benchmarks.bestPr) {
+    medalMap[topPr.id] = [...(medalMap[topPr.id] ?? []), `Highest calculated PR +${(topPr.pr - exercise.benchmarks.bestPr).toFixed(1)}`];
   }
 
-  const w = Number(set.enteredWeight) * set.pulleyMultiplier;
-  const r = Number(set.reps);
-  const volume = w * r;
-  const pr = w * (1 + r / 30);
-  const parts = [];
-  if (w > exercise.benchmarks.bestWeight) parts.push(`Highest weight +${(w - exercise.benchmarks.bestWeight).toFixed(1)}`);
-  if (volume > exercise.benchmarks.bestVolume) parts.push(`Highest set volume +${(volume - exercise.benchmarks.bestVolume).toFixed(1)}`);
-  if (pr > exercise.benchmarks.bestPr) parts.push(`Highest calculated PR +${(pr - exercise.benchmarks.bestPr).toFixed(1)}`);
-  return parts.join("\n");
+  return medalMap;
+}
+
+function hasInvalidSets(session: WorkoutSession) {
+  return session.exercises.some((exercise) =>
+    exercise.sets.some((set) => {
+      const hasInput = Boolean(set.enteredWeight.trim() || set.reps.trim());
+      const hasCompleteInput = Boolean(set.enteredWeight.trim() && set.reps.trim());
+      if (set.completed) {
+        return !hasCompleteInput;
+      }
+      return hasInput;
+    })
+  );
 }
 
 function fmt(seconds: number) {

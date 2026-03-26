@@ -28,7 +28,7 @@ export function PageHeader({ title, subtitle, onBack, rightSlot }: PageHeaderPro
             </Pressable>
           ) : null}
           <View className="flex-1">
-            <Text className="text-2xl font-semibold text-text">{title}</Text>
+            <Text className="text-xl font-semibold text-text">{title}</Text>
             {subtitle ? <Text className="mt-1 text-sm text-muted">{subtitle}</Text> : null}
           </View>
         </View>

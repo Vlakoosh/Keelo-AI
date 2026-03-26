@@ -15,24 +15,24 @@ export function PrimaryButton({
 }: PrimaryButtonProps) {
   const classes =
     variant === "primary"
-      ? "border-accent bg-accent"
+      ? "border-secondary bg-secondary"
       : variant === "danger"
-        ? "border-white bg-red-500/10"
-        : "border-white bg-surface";
+        ? "border-red-500 bg-red-500/10"
+        : "border-tertiary bg-tertiary";
 
   const textClass =
     variant === "primary"
-      ? "text-background"
+      ? "text-text-secondary"
       : variant === "danger"
         ? "text-red-300"
-        : "text-text";
+        : "text-secondary uppercase tracking-[1px]";
 
   return (
     <Pressable
       onPress={onPress}
-      className={`${fullWidth ? "w-full" : ""} h-12 items-center justify-center rounded-card border ${classes} px-5`}
+      className={`${fullWidth ? "w-full" : ""} h-12 items-center justify-center rounded-card ${variant === "primary" ? "border-0" : "border"} ${classes} px-5`}
     >
-      <Text className={`text-sm font-semibold ${textClass}`}>{label}</Text>
+      <Text className={`text-base font-semibold ${textClass}`}>{label}</Text>
     </Pressable>
   );
 }

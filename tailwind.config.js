@@ -5,16 +5,21 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: "#000000",
-        surface: "#0A0A0A",
-        "surface-2": "#111111",
+        primary: "#111111",
+        secondary: "#FF772C",
+        tertiary: "#181818",
+        quaternary: "#1C1E1F",
+        background: "#111111",
+        surface: "#141414",
+        "surface-2": "#181818",
         border: "#262626",
         text: "#FAFAFA",
+        "text-secondary": "#242529",
         muted: "#A3A3A3",
         protein: "#7ED957",
         carbs: "#60A5FA",
         fats: "#F59E0B",
-        accent: "#F5F5F5"
+        accent: "#FF772C"
       },
       borderRadius: {
         card: "10px"
