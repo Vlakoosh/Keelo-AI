@@ -10,6 +10,7 @@ import { PrimaryButton } from "@/components/primary-button";
 import { consumePendingExerciseSelection } from "@/features/workout/add-exercise-bridge";
 import { type WorkoutExercise, type WorkoutSession, type WeightUnit, type SetType } from "@/features/workout/mock-data";
 import { createExerciseFromCatalogId, createWorkoutRoutine, initializeWorkoutStorage, loadWorkoutRoutineById, updateWorkoutRoutine } from "@/features/workout/storage";
+import { useAppTheme } from "@/theme/theme-provider";
 
 type Sheet =
   | { type: "none" }
@@ -22,6 +23,7 @@ export default function CreateRoutineScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ routineId?: string }>();
   const isFocused = useIsFocused();
+  const { theme } = useAppTheme();
   const [routine, setRoutine] = useState<WorkoutSession>({
     id: "routine-draft",
     name: "Untitled Routine",
@@ -105,13 +107,13 @@ export default function CreateRoutineScreen() {
   }
 
   return (
-    <View className="flex-1 bg-background">
+    <View className="flex-1" style={{ backgroundColor: theme.background }}>
       <PageHeader
         title={params.routineId ? "Edit Routine" : "Create Routine"}
         onBack={() => router.back()}
         rightSlot={
           <Pressable onPress={() => { void handleSaveRoutine(); }} className="px-1 py-2">
-            <Text className="text-base font-semibold uppercase tracking-[1px] text-secondary">Save</Text>
+            <Text className="text-base font-semibold uppercase tracking-[1px]" style={{ color: theme.secondary }}>Save</Text>
           </Pressable>
         }
       />
@@ -122,7 +124,8 @@ export default function CreateRoutineScreen() {
             onChangeText={(text) => setRoutine((current) => ({ ...current, name: text }))}
             placeholder="Routine Name"
             placeholderTextColor="#A3A3A3"
-            className="py-0 text-3xl font-semibold text-text"
+            className="py-0 text-3xl font-semibold"
+            style={{ color: theme.text }}
           />
           <TextInput
             multiline
@@ -131,7 +134,8 @@ export default function CreateRoutineScreen() {
             placeholder="Add notes or description"
             placeholderTextColor="#A3A3A3"
             textAlignVertical="top"
-            className="min-h-[56px] px-0 py-2 text-base text-text"
+            className="min-h-[56px] px-0 py-2 text-base"
+            style={{ color: theme.text }}
           />
         </View>
         {routine.exercises.map((exercise) => (

@@ -10,6 +10,7 @@ import {
   type WorkoutRoutine,
   type WorkoutSession
 } from "@/features/workout/mock-data";
+import { getWorkoutDurationSeconds } from "@/features/workout/session-utils";
 
 type LatestExerciseSet = {
   previous: string;
@@ -44,6 +45,10 @@ export type WorkoutHistoryItem = {
   durationSeconds: number;
   setCount: number;
   totalWeight: number;
+  finishedAt: number;
+};
+
+export type WorkoutSessionDetail = WorkoutSession & {
   finishedAt: number;
 };
 
@@ -325,6 +330,128 @@ export async function loadWorkoutHistory(limit = 12) {
   });
 }
 
+export async function loadWorkoutSessionById(sessionId: string) {
+  const db = await dbPromise;
+  const session = await db.getFirstAsync<{
+    id: string;
+    name: string;
+    source_routine_id: string | null;
+    started_at: number;
+    finished_at: number;
+    notes: string | null;
+  }>(
+    `SELECT id, name, source_routine_id, started_at, finished_at, notes
+     FROM workout_sessions
+     WHERE id = ?`,
+    sessionId
+  );
+
+  if (!session) {
+    return null;
+  }
+
+  const exercises = await db.getAllAsync<{
+    id: string;
+    exercise_name: string;
+    notes: string | null;
+    rest_timer_seconds: number;
+    exercise_order: number;
+  }>(
+    `SELECT id, exercise_name, notes, rest_timer_seconds, exercise_order
+     FROM workout_session_exercises
+     WHERE session_id = ?
+     ORDER BY exercise_order`,
+    sessionId
+  );
+
+  const sets = await db.getAllAsync<{
+    session_exercise_id: string;
+    set_order: number;
+    set_type: SetType;
+    previous_label: string;
+    weight_value: number;
+    weight_unit: WeightUnit;
+    pulley_multiplier: number;
+    reps: number;
+    completed: number;
+  }>(
+    `SELECT session_exercise_id, set_order, set_type, previous_label, weight_value, weight_unit, pulley_multiplier, reps, completed
+     FROM workout_session_sets
+     WHERE session_exercise_id IN (${exercises.map(() => "?").join(", ") || "''"})
+     ORDER BY session_exercise_id, set_order`,
+    ...exercises.map((exercise) => exercise.id)
+  );
+
+  const historyMap = await getExerciseHistoryMap();
+
+  return {
+    id: session.id,
+    name: session.name,
+    sourceRoutineId: session.source_routine_id ?? undefined,
+    startedAt: session.started_at,
+    finishedAt: session.finished_at,
+    notes: session.notes ?? "",
+    exercises: exercises.map<WorkoutExercise>((exercise) => {
+      const benchmarks = historyMap[exercise.exercise_name]?.benchmarks ?? {
+        bestWeight: 0,
+        bestVolume: 0,
+        bestPr: 0
+      };
+
+      return {
+        id: exercise.id,
+        name: exercise.exercise_name,
+        routineNotes: exercise.notes ?? "",
+        sessionNotes: exercise.notes ?? "",
+        restTimerSeconds: exercise.rest_timer_seconds,
+        benchmarks,
+        sets: sets
+          .filter((set) => set.session_exercise_id === exercise.id)
+          .map((set) => ({
+            id: `${exercise.id}-${set.set_order}`,
+            type: set.set_type,
+            previous: set.previous_label,
+            enteredWeight: trimNumber(set.weight_value),
+            reps: String(set.reps),
+            completed: set.completed === 1,
+            unit: set.weight_unit,
+            pulleyMultiplier: Number(set.pulley_multiplier) === 0.5 ? 0.5 : 1
+          }))
+      };
+    })
+  } satisfies WorkoutSessionDetail;
+}
+
+export async function updateWorkoutSessionMeta(sessionId: string, values: { name: string; notes: string }) {
+  const db = await dbPromise;
+  await db.runAsync(
+    "UPDATE workout_sessions SET name = ?, notes = ? WHERE id = ?",
+    values.name || "Untitled Workout",
+    values.notes || null,
+    sessionId
+  );
+}
+
+export async function deleteWorkoutSession(sessionId: string) {
+  const db = await dbPromise;
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    const exercises = await txn.getAllAsync<{ id: string }>(
+      "SELECT id FROM workout_session_exercises WHERE session_id = ?",
+      sessionId
+    );
+
+    for (const exercise of exercises) {
+      await txn.runAsync(
+        "DELETE FROM workout_session_sets WHERE session_exercise_id = ?",
+        exercise.id
+      );
+    }
+
+    await txn.runAsync("DELETE FROM workout_session_exercises WHERE session_id = ?", sessionId);
+    await txn.runAsync("DELETE FROM workout_sessions WHERE id = ?", sessionId);
+  });
+}
+
 export async function createSessionFromRoutine(routineId: string) {
   const routines = await loadWorkoutRoutines();
   const routine = routines.find((item) => item.id === routineId);
@@ -523,7 +650,7 @@ export async function createExerciseFromCatalogId(exerciseId: string) {
 
 export async function saveWorkoutSession(session: WorkoutSession) {
   const db = await dbPromise;
-  const finishedAt = Date.now();
+  const finishedAt = session.startedAt + getWorkoutDurationSeconds(session) * 1000;
 
   await db.withExclusiveTransactionAsync(async (txn) => {
     await txn.runAsync(

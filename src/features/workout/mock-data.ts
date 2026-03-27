@@ -41,6 +41,7 @@ export type WorkoutSession = {
   name: string;
   sourceRoutineId?: string;
   startedAt: number;
+  durationOverrideSeconds?: number;
   exercises: WorkoutExercise[];
   notes: string;
 };

@@ -14,6 +14,7 @@ import {
   recordManualExerciseAdd,
   searchExerciseCatalog
 } from "@/features/workout/storage";
+import { useAppTheme } from "@/theme/theme-provider";
 
 type FilterSheet =
   | { type: "none" }
@@ -22,6 +23,7 @@ type FilterSheet =
 
 export default function AddExerciseScreen() {
   const router = useRouter();
+  const { theme } = useAppTheme();
   const [search, setSearch] = useState("");
   const [equipment, setEquipment] = useState<string | null>(null);
   const [muscle, setMuscle] = useState<string | null>(null);
@@ -95,25 +97,26 @@ export default function AddExerciseScreen() {
   }
 
   return (
-    <View className="flex-1 bg-background">
+    <View className="flex-1" style={{ backgroundColor: theme.background }}>
       <PageHeader
         title="Add Exercise"
         onBack={() => router.back()}
         rightSlot={
           <Pressable onPress={() => Alert.alert("Create exercise", "Custom exercise creation is next.")}>
-            <Text className="text-base font-semibold text-text">Create</Text>
+            <Text className="text-base font-semibold" style={{ color: theme.text }}>Create</Text>
           </Pressable>
         }
       />
       <View className="px-5 pt-5">
-        <View className="flex-row items-center gap-3 border-b border-border pb-3">
-          <Ionicons name="search-outline" size={18} color="#A3A3A3" />
+        <View className="flex-row items-center gap-3 pb-3" style={{ borderBottomWidth: 1, borderBottomColor: theme.border }}>
+          <Ionicons name="search-outline" size={18} color={theme.muted} />
           <TextInput
             value={search}
             onChangeText={setSearch}
             placeholder="Search exercises"
-            placeholderTextColor="#737373"
-            className="flex-1 py-0 text-base text-text"
+            placeholderTextColor={theme.muted}
+            className="flex-1 py-0 text-base"
+            style={{ color: theme.text }}
           />
         </View>
         <View className="mt-4 flex-row gap-3">
@@ -130,13 +133,13 @@ export default function AddExerciseScreen() {
         </View>
       </View>
       <ScrollView className="flex-1" contentContainerClassName="px-5 pb-8 pt-6">
-        <Text className="mb-4 text-lg font-semibold text-text">
+        <Text className="mb-4 text-lg font-semibold" style={{ color: theme.text }}>
           {showRecents ? "Recent Exercises" : "Results"}
         </Text>
         {isLoading ? (
-          <Text className="text-sm text-muted">Loading exercises...</Text>
+          <Text className="text-sm" style={{ color: theme.muted }}>Loading exercises...</Text>
         ) : visibleExercises.length === 0 ? (
-          <Text className="text-sm leading-6 text-muted">
+          <Text className="text-sm leading-6" style={{ color: theme.muted }}>
             {showRecents
               ? "Your manually added exercises will show up here."
               : "No exercises match that search yet."}
@@ -149,16 +152,17 @@ export default function AddExerciseScreen() {
                 onPress={() => {
                   void handleSelectExercise(exercise);
                 }}
-                className="flex-row items-center gap-4 border-b border-border py-4"
+                className="flex-row items-center gap-4 py-4"
+                style={{ borderBottomWidth: 1, borderBottomColor: theme.border }}
               >
-                <View className="h-12 w-12 items-center justify-center rounded-full border border-border">
-                  <Ionicons name="barbell-outline" size={20} color="#FAFAFA" />
+                <View className="h-12 w-12 items-center justify-center rounded-full" style={{ borderWidth: 1, borderColor: theme.border }}>
+                  <Ionicons name="barbell-outline" size={20} color={theme.text} />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-base font-semibold text-text">
+                  <Text className="text-base font-semibold" style={{ color: theme.text }}>
                     {exercise.name} {exercise.equipment === "Bodyweight" ? "" : `(${exercise.equipment})`}
                   </Text>
-                  <Text className="mt-1 text-sm text-muted">{exercise.muscle}</Text>
+                  <Text className="mt-1 text-sm" style={{ color: theme.muted }}>{exercise.muscle}</Text>
                 </View>
               </Pressable>
             ))}
@@ -215,12 +219,14 @@ function FilterButton({
   onPress: () => void;
   active: boolean;
 }) {
+  const { theme } = useAppTheme();
   return (
     <Pressable
       onPress={onPress}
-      className={`rounded-card border px-4 py-3 ${active ? "border-white" : "border-white"}`}
+      className="rounded-card border px-4 py-3"
+      style={{ borderColor: active ? theme.secondary : theme.border, backgroundColor: theme.mode === "light" ? theme.surface : "transparent" }}
     >
-      <Text className="text-sm font-semibold text-text">{label}</Text>
+      <Text className="text-sm font-semibold" style={{ color: theme.text }}>{label}</Text>
     </Pressable>
   );
 }
@@ -234,12 +240,14 @@ function FilterOption({
   active: boolean;
   onPress: () => void;
 }) {
+  const { theme } = useAppTheme();
   return (
     <Pressable
       onPress={onPress}
-      className={`rounded-card border px-4 py-4 ${active ? "border-white bg-surface" : "border-white"}`}
+      className="rounded-card border px-4 py-4"
+      style={{ borderColor: active ? theme.secondary : theme.border, backgroundColor: active ? theme.surface : theme.background }}
     >
-      <Text className="text-sm font-semibold text-text">{label}</Text>
+      <Text className="text-sm font-semibold" style={{ color: theme.text }}>{label}</Text>
     </Pressable>
   );
 }
