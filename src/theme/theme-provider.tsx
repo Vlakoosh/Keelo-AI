@@ -38,17 +38,17 @@ const palettes: Record<ThemeMode, ThemePalette> = {
     overlay: "rgba(0,0,0,0.7)",
     protein: "#7ED957",
     carbs: "#60A5FA",
-    fats: "#F59E0B"
+    fats: "#F59E0B",
   },
   light: {
     mode: "light",
-    primary: "#EEEEEE",
+    primary: "#FFFFFF",
     secondary: "#FF8A4C",
-    tertiary: "#DADADA",
-    quaternary: "#CFCFCF",
-    background: "#EEEEEE",
+    tertiary: "#FFFFFF",
+    quaternary: "#E2E2E2",
+    background: "#E8E8E8",
     surface: "#FFFFFF",
-    surface2: "#E4E4E4",
+    surface2: "#F6F6F6",
     border: "#C8C8C8",
     text: "#111111",
     textSecondary: "#242529",
@@ -56,8 +56,8 @@ const palettes: Record<ThemeMode, ThemePalette> = {
     overlay: "rgba(17,17,17,0.18)",
     protein: "#3FAE2A",
     carbs: "#2563EB",
-    fats: "#D97706"
-  }
+    fats: "#D97706",
+  },
 };
 
 type ThemeContextValue = {
@@ -77,12 +77,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       theme: palettes[mode],
       mode,
       setMode,
-      toggleMode: () => setMode((current) => (current === "dark" ? "light" : "dark"))
+      toggleMode: () =>
+        setMode((current) => (current === "dark" ? "light" : "dark")),
     }),
-    [mode]
+    [mode],
   );
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  );
 }
 
 export function useAppTheme() {

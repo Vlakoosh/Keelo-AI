@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Animated, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -22,6 +22,7 @@ export function AppTabBar({
   const { theme } = useAppTheme();
   const insets = useSafeAreaInsets();
   const pulse = useRef(new Animated.Value(1)).current;
+  const [now, setNow] = useState(() => Date.now());
   const {
     activeWorkout,
     discardActiveWorkout,
@@ -30,6 +31,15 @@ export function AppTabBar({
     requestResume,
   } = useActiveWorkout();
   const visibleRoutes = state.routes.filter((route) => route.name in tabIcons);
+  const shouldShowActiveWorkout = activeWorkout && !isActiveWorkoutVisible;
+
+  useEffect(() => {
+    if (!shouldShowActiveWorkout) return;
+
+    setNow(Date.now());
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [shouldShowActiveWorkout]);
 
   useEffect(() => {
     if (!activeWorkout) {
@@ -67,7 +77,7 @@ export function AppTabBar({
         backgroundColor: theme.background,
       }}
     >
-      {activeWorkout && !isActiveWorkoutVisible ? (
+      {shouldShowActiveWorkout ? (
         <View
           className="mb-3 flex-row items-center gap-3 rounded-card px-4 py-3"
           style={{
@@ -102,7 +112,7 @@ export function AppTabBar({
                 style={{ color: theme.text }}
               >
                 Workout:{" "}
-                {formatDuration(getWorkoutDurationSeconds(activeWorkout))}
+                {formatDuration(getWorkoutDurationSeconds(activeWorkout, now))}
               </Text>
             </View>
             <Text
