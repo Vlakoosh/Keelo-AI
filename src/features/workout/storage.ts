@@ -8,8 +8,14 @@ import {
   type WeightUnit,
   type WorkoutExercise,
   type WorkoutRoutine,
-  type WorkoutSession
+  type WorkoutSession,
 } from "@/features/workout/mock-data";
+import {
+  EXERCISE_EQUIPMENT_OPTIONS,
+  GLOBAL_EXERCISE_CATALOG,
+  MUSCLE_GROUP_OPTIONS,
+  type ExerciseCatalogMetadata,
+} from "@/features/workout/exercise-catalog";
 import { getWorkoutDurationSeconds } from "@/features/workout/session-utils";
 
 type LatestExerciseSet = {
@@ -36,6 +42,16 @@ export type ExerciseCatalogItem = {
   name: string;
   equipment: string;
   muscle: string;
+  primaryMuscles: string[];
+  secondaryMuscles: string[];
+  metadata: ExerciseCatalogMetadata;
+};
+
+export type CreateCustomExerciseInput = {
+  name: string;
+  equipment: string;
+  primaryMuscle: string;
+  secondaryMuscles: string[];
 };
 
 export type WorkoutHistoryItem = {
@@ -51,29 +67,6 @@ export type WorkoutHistoryItem = {
 export type WorkoutSessionDetail = WorkoutSession & {
   finishedAt: number;
 };
-
-const EXERCISE_SEED: ExerciseCatalogItem[] = [
-  { id: "bench-press-barbell", name: "Bench Press", equipment: "Barbell", muscle: "Chest" },
-  { id: "bench-press-dumbbell", name: "Bench Press", equipment: "Dumbbell", muscle: "Chest" },
-  { id: "bent-over-row-barbell", name: "Bent Over Row", equipment: "Barbell", muscle: "Back" },
-  { id: "incline-bench-press-dumbbell", name: "Incline Bench Press", equipment: "Dumbbell", muscle: "Chest" },
-  { id: "incline-bench-press-barbell", name: "Incline Bench Press", equipment: "Barbell", muscle: "Chest" },
-  { id: "pull-up-bodyweight", name: "Pull Up", equipment: "Bodyweight", muscle: "Back" },
-  { id: "seated-cable-row-v-grip", name: "Seated Cable Row - V Grip", equipment: "Cable", muscle: "Back" },
-  { id: "shoulder-press-barbell", name: "Shoulder Press", equipment: "Barbell", muscle: "Shoulders" },
-  { id: "shoulder-press-dumbbell", name: "Shoulder Press", equipment: "Dumbbell", muscle: "Shoulders" },
-  { id: "tricep-pushdown-cable", name: "Tricep Pushdown", equipment: "Cable", muscle: "Triceps" },
-  { id: "lateral-raise-cable", name: "Lateral Raise", equipment: "Cable", muscle: "Shoulders" },
-  { id: "tricep-extension-cable", name: "Tricep Extension", equipment: "Cable", muscle: "Triceps" },
-  { id: "bicep-curl-barbell", name: "Bicep Curl", equipment: "Barbell", muscle: "Biceps" },
-  { id: "rope-hammer-curl-cable", name: "Rope Hammer Curl", equipment: "Cable", muscle: "Biceps" },
-  { id: "lat-pulldown-cable", name: "Lat Pulldown", equipment: "Cable", muscle: "Back" },
-  { id: "kneeling-lat-pulldown-cable", name: "Kneeling Lat Pulldown", equipment: "Cable", muscle: "Back" },
-  { id: "squat-barbell", name: "Squat", equipment: "Barbell", muscle: "Quads" },
-  { id: "romanian-deadlift-barbell", name: "Romanian Deadlift", equipment: "Barbell", muscle: "Hamstrings" },
-  { id: "leg-extensions-machine", name: "Leg Extensions", equipment: "Machine", muscle: "Quads" },
-  { id: "seated-leg-curl-machine", name: "Seated Leg Curl", equipment: "Machine", muscle: "Hamstrings" }
-];
 
 const dbPromise = SQLite.openDatabaseAsync("keelo.db");
 
@@ -144,7 +137,10 @@ export async function initializeWorkoutStorage() {
       id TEXT PRIMARY KEY NOT NULL,
       name TEXT NOT NULL,
       equipment TEXT NOT NULL,
-      muscle TEXT NOT NULL
+      muscle TEXT NOT NULL,
+      primary_muscles TEXT NOT NULL DEFAULT '[]',
+      secondary_muscles TEXT NOT NULL DEFAULT '[]',
+      metadata TEXT NOT NULL DEFAULT '{}'
     );
 
     CREATE TABLE IF NOT EXISTS manual_exercise_adds (
@@ -155,13 +151,10 @@ export async function initializeWorkoutStorage() {
   `);
 
   const routineCount = await db.getFirstAsync<{ count: number }>(
-    "SELECT COUNT(*) as count FROM workout_routines"
-  );
-  const exerciseCount = await db.getFirstAsync<{ count: number }>(
-    "SELECT COUNT(*) as count FROM exercise_catalog"
+    "SELECT COUNT(*) as count FROM workout_routines",
   );
   const routineSetCount = await db.getFirstAsync<{ count: number }>(
-    "SELECT COUNT(*) as count FROM workout_routine_sets"
+    "SELECT COUNT(*) as count FROM workout_routine_sets",
   );
 
   if ((routineCount?.count ?? 0) === 0) {
@@ -169,18 +162,45 @@ export async function initializeWorkoutStorage() {
     await seedWorkoutHistory();
   }
 
-  if ((exerciseCount?.count ?? 0) === 0) {
-    await seedExerciseCatalog();
-  }
-
   const routineExerciseColumns = await db.getAllAsync<{ name: string }>(
-    "SELECT name FROM pragma_table_info('workout_routine_exercises')"
+    "SELECT name FROM pragma_table_info('workout_routine_exercises')",
   );
-  if (!routineExerciseColumns.some((column) => column.name === "rest_timer_seconds")) {
+  if (
+    !routineExerciseColumns.some(
+      (column) => column.name === "rest_timer_seconds",
+    )
+  ) {
     await db.execAsync(
-      "ALTER TABLE workout_routine_exercises ADD COLUMN rest_timer_seconds INTEGER NOT NULL DEFAULT 0"
+      "ALTER TABLE workout_routine_exercises ADD COLUMN rest_timer_seconds INTEGER NOT NULL DEFAULT 0",
     );
   }
+
+  const exerciseCatalogColumns = await db.getAllAsync<{ name: string }>(
+    "SELECT name FROM pragma_table_info('exercise_catalog')",
+  );
+  if (
+    !exerciseCatalogColumns.some((column) => column.name === "primary_muscles")
+  ) {
+    await db.execAsync(
+      "ALTER TABLE exercise_catalog ADD COLUMN primary_muscles TEXT NOT NULL DEFAULT '[]'",
+    );
+  }
+  if (
+    !exerciseCatalogColumns.some(
+      (column) => column.name === "secondary_muscles",
+    )
+  ) {
+    await db.execAsync(
+      "ALTER TABLE exercise_catalog ADD COLUMN secondary_muscles TEXT NOT NULL DEFAULT '[]'",
+    );
+  }
+  if (!exerciseCatalogColumns.some((column) => column.name === "metadata")) {
+    await db.execAsync(
+      "ALTER TABLE exercise_catalog ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'",
+    );
+  }
+
+  await syncExerciseCatalog();
 
   if ((routineSetCount?.count ?? 0) === 0 && (routineCount?.count ?? 0) > 0) {
     await backfillRoutineTemplates();
@@ -205,7 +225,7 @@ export async function loadWorkoutRoutines() {
   }>(
     `SELECT id, routine_id, exercise_name, notes, exercise_order, rest_timer_seconds
      FROM workout_routine_exercises
-     ORDER BY routine_id, exercise_order`
+     ORDER BY routine_id, exercise_order`,
   );
 
   const sets = await db.getAllAsync<{
@@ -219,7 +239,7 @@ export async function loadWorkoutRoutines() {
   }>(
     `SELECT routine_exercise_id, set_order, set_type, weight_unit, pulley_multiplier, target_weight, target_reps
      FROM workout_routine_sets
-     ORDER BY routine_exercise_id, set_order`
+     ORDER BY routine_exercise_id, set_order`,
   );
 
   const historyMap = await getExerciseHistoryMap();
@@ -240,9 +260,9 @@ export async function loadWorkoutRoutines() {
               unit: set.weight_unit,
               pulleyMultiplier: Number(set.pulley_multiplier) === 0.5 ? 0.5 : 1,
               targetWeight: set.target_weight ?? "",
-              targetReps: set.target_reps ?? ""
-            }))
-        )
+              targetReps: set.target_reps ?? "",
+            })),
+        ),
       );
 
     return {
@@ -250,7 +270,7 @@ export async function loadWorkoutRoutines() {
       name: routine.name,
       description: routine.description ?? undefined,
       exercisePreview: routineExercises.map((exercise) => exercise.name),
-      exercises: routineExercises
+      exercises: routineExercises,
     };
   });
 }
@@ -267,7 +287,7 @@ export async function loadWorkoutHistory(limit = 12) {
      FROM workout_sessions
      ORDER BY finished_at DESC
      LIMIT ?`,
-    limit
+    limit,
   );
 
   if (sessions.length === 0) {
@@ -283,7 +303,7 @@ export async function loadWorkoutHistory(limit = 12) {
      FROM workout_session_exercises
      WHERE session_id IN (${sessions.map(() => "?").join(", ")})
      ORDER BY session_id, exercise_order ASC`,
-    ...sessions.map((session) => session.id)
+    ...sessions.map((session) => session.id),
   );
 
   const sets = await db.getAllAsync<{
@@ -298,7 +318,7 @@ export async function loadWorkoutHistory(limit = 12) {
      FROM workout_session_sets ss
      JOIN workout_session_exercises se ON se.id = ss.session_exercise_id
      WHERE se.session_id IN (${sessions.map(() => "?").join(", ")})`,
-    ...sessions.map((session) => session.id)
+    ...sessions.map((session) => session.id),
   );
 
   return sessions.map<WorkoutHistoryItem>((session) => {
@@ -308,24 +328,36 @@ export async function loadWorkoutHistory(limit = 12) {
     const sessionSets = sets.filter((set) => set.session_id === session.id);
     const setCount = sessionSets.filter(
       (set) =>
-        set.completed === 1 && (set.set_type === "normal" || set.set_type === "failure")
+        set.completed === 1 &&
+        (set.set_type === "normal" || set.set_type === "failure"),
     ).length;
     const totalWeight = sessionSets.reduce((sum, set) => {
-      if (set.completed !== 1 || (set.set_type !== "normal" && set.set_type !== "failure")) {
+      if (
+        set.completed !== 1 ||
+        (set.set_type !== "normal" && set.set_type !== "failure")
+      ) {
         return sum;
       }
 
-      return sum + Number(set.weight_value) * Number(set.pulley_multiplier) * Number(set.reps);
+      return (
+        sum +
+        Number(set.weight_value) *
+          Number(set.pulley_multiplier) *
+          Number(set.reps)
+      );
     }, 0);
 
     return {
       id: session.id,
       name: session.name,
       exercisePreview: sessionExercises,
-      durationSeconds: Math.max(0, Math.floor((session.finished_at - session.started_at) / 1000)),
+      durationSeconds: Math.max(
+        0,
+        Math.floor((session.finished_at - session.started_at) / 1000),
+      ),
       setCount,
       totalWeight,
-      finishedAt: session.finished_at
+      finishedAt: session.finished_at,
     };
   });
 }
@@ -343,7 +375,7 @@ export async function loadWorkoutSessionById(sessionId: string) {
     `SELECT id, name, source_routine_id, started_at, finished_at, notes
      FROM workout_sessions
      WHERE id = ?`,
-    sessionId
+    sessionId,
   );
 
   if (!session) {
@@ -361,7 +393,7 @@ export async function loadWorkoutSessionById(sessionId: string) {
      FROM workout_session_exercises
      WHERE session_id = ?
      ORDER BY exercise_order`,
-    sessionId
+    sessionId,
   );
 
   const sets = await db.getAllAsync<{
@@ -379,7 +411,7 @@ export async function loadWorkoutSessionById(sessionId: string) {
      FROM workout_session_sets
      WHERE session_exercise_id IN (${exercises.map(() => "?").join(", ") || "''"})
      ORDER BY session_exercise_id, set_order`,
-    ...exercises.map((exercise) => exercise.id)
+    ...exercises.map((exercise) => exercise.id),
   );
 
   const historyMap = await getExerciseHistoryMap();
@@ -395,7 +427,7 @@ export async function loadWorkoutSessionById(sessionId: string) {
       const benchmarks = historyMap[exercise.exercise_name]?.benchmarks ?? {
         bestWeight: 0,
         bestVolume: 0,
-        bestPr: 0
+        bestPr: 0,
       };
 
       return {
@@ -415,20 +447,23 @@ export async function loadWorkoutSessionById(sessionId: string) {
             reps: String(set.reps),
             completed: set.completed === 1,
             unit: set.weight_unit,
-            pulleyMultiplier: Number(set.pulley_multiplier) === 0.5 ? 0.5 : 1
-          }))
+            pulleyMultiplier: Number(set.pulley_multiplier) === 0.5 ? 0.5 : 1,
+          })),
       };
-    })
+    }),
   } satisfies WorkoutSessionDetail;
 }
 
-export async function updateWorkoutSessionMeta(sessionId: string, values: { name: string; notes: string }) {
+export async function updateWorkoutSessionMeta(
+  sessionId: string,
+  values: { name: string; notes: string },
+) {
   const db = await dbPromise;
   await db.runAsync(
     "UPDATE workout_sessions SET name = ?, notes = ? WHERE id = ?",
     values.name || "Untitled Workout",
     values.notes || null,
-    sessionId
+    sessionId,
   );
 }
 
@@ -437,17 +472,20 @@ export async function deleteWorkoutSession(sessionId: string) {
   await db.withExclusiveTransactionAsync(async (txn) => {
     const exercises = await txn.getAllAsync<{ id: string }>(
       "SELECT id FROM workout_session_exercises WHERE session_id = ?",
-      sessionId
+      sessionId,
     );
 
     for (const exercise of exercises) {
       await txn.runAsync(
         "DELETE FROM workout_session_sets WHERE session_exercise_id = ?",
-        exercise.id
+        exercise.id,
       );
     }
 
-    await txn.runAsync("DELETE FROM workout_session_exercises WHERE session_id = ?", sessionId);
+    await txn.runAsync(
+      "DELETE FROM workout_session_exercises WHERE session_id = ?",
+      sessionId,
+    );
     await txn.runAsync("DELETE FROM workout_sessions WHERE id = ?", sessionId);
   });
 }
@@ -466,7 +504,7 @@ export async function createSessionFromRoutine(routineId: string) {
     sourceRoutineId: routine.id,
     startedAt: Date.now(),
     notes: routine.description ?? "",
-    exercises: structuredClone(routine.exercises)
+    exercises: structuredClone(routine.exercises),
   } satisfies WorkoutSession;
 }
 
@@ -488,7 +526,7 @@ export async function createWorkoutRoutine(routine: {
       "INSERT INTO workout_routines (id, name, description) VALUES (?, ?, ?)",
       routineId,
       routine.name || "Untitled Routine",
-      routine.description || null
+      routine.description || null,
     );
 
     for (const [exerciseIndex, exercise] of routine.exercises.entries()) {
@@ -502,7 +540,7 @@ export async function createWorkoutRoutine(routine: {
         exercise.name,
         "",
         exerciseIndex,
-        exercise.restTimerSeconds
+        exercise.restTimerSeconds,
       );
 
       for (const [setIndex, set] of exercise.sets.entries()) {
@@ -517,7 +555,7 @@ export async function createWorkoutRoutine(routine: {
           set.unit,
           set.pulleyMultiplier,
           set.enteredWeight || null,
-          set.reps || null
+          set.reps || null,
         );
       }
     }
@@ -532,7 +570,7 @@ export async function updateWorkoutRoutine(
     name: string;
     description: string;
     exercises: WorkoutExercise[];
-  }
+  },
 ) {
   const db = await dbPromise;
 
@@ -541,22 +579,25 @@ export async function updateWorkoutRoutine(
       "UPDATE workout_routines SET name = ?, description = ? WHERE id = ?",
       routine.name || "Untitled Routine",
       routine.description || null,
-      routineId
+      routineId,
     );
 
     const existingExercises = await txn.getAllAsync<{ id: string }>(
       "SELECT id FROM workout_routine_exercises WHERE routine_id = ?",
-      routineId
+      routineId,
     );
 
     for (const exercise of existingExercises) {
       await txn.runAsync(
         "DELETE FROM workout_routine_sets WHERE routine_exercise_id = ?",
-        exercise.id
+        exercise.id,
       );
     }
 
-    await txn.runAsync("DELETE FROM workout_routine_exercises WHERE routine_id = ?", routineId);
+    await txn.runAsync(
+      "DELETE FROM workout_routine_exercises WHERE routine_id = ?",
+      routineId,
+    );
 
     for (const [exerciseIndex, exercise] of routine.exercises.entries()) {
       const routineExerciseId = createId("routine-exercise");
@@ -569,7 +610,7 @@ export async function updateWorkoutRoutine(
         exercise.name,
         "",
         exerciseIndex,
-        exercise.restTimerSeconds
+        exercise.restTimerSeconds,
       );
 
       for (const [setIndex, set] of exercise.sets.entries()) {
@@ -584,7 +625,7 @@ export async function updateWorkoutRoutine(
           set.unit,
           set.pulleyMultiplier,
           set.enteredWeight || null,
-          set.reps || null
+          set.reps || null,
         );
       }
     }
@@ -600,7 +641,7 @@ export async function duplicateWorkoutRoutine(routineId: string) {
   return createWorkoutRoutine({
     name: `${routine.name} Copy`,
     description: routine.description ?? "",
-    exercises: structuredClone(routine.exercises)
+    exercises: structuredClone(routine.exercises),
   });
 }
 
@@ -609,48 +650,60 @@ export async function deleteWorkoutRoutine(routineId: string) {
   await db.withExclusiveTransactionAsync(async (txn) => {
     const existingExercises = await txn.getAllAsync<{ id: string }>(
       "SELECT id FROM workout_routine_exercises WHERE routine_id = ?",
-      routineId
+      routineId,
     );
 
     for (const exercise of existingExercises) {
       await txn.runAsync(
         "DELETE FROM workout_routine_sets WHERE routine_exercise_id = ?",
-        exercise.id
+        exercise.id,
       );
     }
 
-    await txn.runAsync("DELETE FROM workout_routine_exercises WHERE routine_id = ?", routineId);
+    await txn.runAsync(
+      "DELETE FROM workout_routine_exercises WHERE routine_id = ?",
+      routineId,
+    );
     await txn.runAsync("DELETE FROM workout_routines WHERE id = ?", routineId);
   });
 }
 
 export async function createExerciseFromCatalog(exerciseName: string) {
   const historyMap = await getExerciseHistoryMap();
-  return createSessionExerciseFromHistory(exerciseName, "", historyMap[exerciseName]);
+  return createSessionExerciseFromHistory(
+    exerciseName,
+    "",
+    historyMap[exerciseName],
+  );
 }
 
 export async function createExerciseFromCatalogId(exerciseId: string) {
   const db = await dbPromise;
-  const row = await db.getFirstAsync<ExerciseCatalogItem>(
-    "SELECT id, name, equipment, muscle FROM exercise_catalog WHERE id = ?",
-    exerciseId
+  const row = await db.getFirstAsync<ExerciseCatalogRow>(
+    `SELECT id, name, equipment, muscle, primary_muscles, secondary_muscles, metadata
+     FROM exercise_catalog
+     WHERE id = ?`,
+    exerciseId,
   );
 
   if (!row) {
     throw new Error(`Exercise not found for id: ${exerciseId}`);
   }
 
+  const exercise = parseExerciseCatalogItem(row);
   const historyMap = await getExerciseHistoryMap();
   return createSessionExerciseFromHistory(
-    formatExerciseLabel(row.name, row.equipment),
+    formatExerciseLabel(exercise.name, exercise.equipment),
     "",
-    historyMap[formatExerciseLabel(row.name, row.equipment)] ?? historyMap[row.name]
+    historyMap[formatExerciseLabel(exercise.name, exercise.equipment)] ??
+      historyMap[exercise.name],
   );
 }
 
 export async function saveWorkoutSession(session: WorkoutSession) {
   const db = await dbPromise;
-  const finishedAt = session.startedAt + getWorkoutDurationSeconds(session) * 1000;
+  const finishedAt =
+    session.startedAt + getWorkoutDurationSeconds(session) * 1000;
 
   await db.withExclusiveTransactionAsync(async (txn) => {
     await txn.runAsync(
@@ -661,7 +714,7 @@ export async function saveWorkoutSession(session: WorkoutSession) {
       session.sourceRoutineId ?? null,
       session.startedAt,
       finishedAt,
-      session.notes
+      session.notes,
     );
 
     for (const [exerciseIndex, exercise] of session.exercises.entries()) {
@@ -676,11 +729,13 @@ export async function saveWorkoutSession(session: WorkoutSession) {
         exercise.name,
         exercise.sessionNotes,
         exercise.restTimerSeconds,
-        exerciseIndex
+        exerciseIndex,
       );
 
       for (const [setIndex, set] of exercise.sets.entries()) {
-        const weightValue = Number(set.enteredWeight || set.weightPlaceholder || 0);
+        const weightValue = Number(
+          set.enteredWeight || set.weightPlaceholder || 0,
+        );
         const repsValue = Number(set.reps || set.repsPlaceholder || 0);
 
         await txn.runAsync(
@@ -696,7 +751,7 @@ export async function saveWorkoutSession(session: WorkoutSession) {
           set.unit,
           set.pulleyMultiplier,
           repsValue,
-          set.completed ? 1 : 0
+          set.completed ? 1 : 0,
         );
       }
     }
@@ -711,7 +766,7 @@ export async function loadExerciseCatalog() {
       UNION ALL
       SELECT exercise_name FROM workout_session_exercises
     )
-    ORDER BY exercise_name ASC`
+    ORDER BY exercise_name ASC`,
   );
 
   if (rows.length === 0) {
@@ -721,14 +776,18 @@ export async function loadExerciseCatalog() {
   return rows.map((row) => row.exercise_name);
 }
 
-export async function searchExerciseCatalog(search: string, equipment?: string, muscle?: string) {
+export async function searchExerciseCatalog(
+  search: string,
+  equipment?: string,
+  muscle?: string,
+) {
   const db = await dbPromise;
   const searchTerm = `%${search.trim().toLowerCase()}%`;
 
-  return db.getAllAsync<ExerciseCatalogItem>(
-    `SELECT id, name, equipment, muscle
+  const rows = await db.getAllAsync<ExerciseCatalogRow>(
+    `SELECT id, name, equipment, muscle, primary_muscles, secondary_muscles, metadata
      FROM exercise_catalog
-     WHERE lower(name || ' ' || equipment) LIKE ?
+     WHERE lower(name || ' ' || equipment || ' ' || muscle || ' ' || primary_muscles || ' ' || secondary_muscles) LIKE ?
        AND (? IS NULL OR equipment = ?)
        AND (? IS NULL OR muscle = ?)
      ORDER BY name ASC, equipment ASC`,
@@ -736,38 +795,42 @@ export async function searchExerciseCatalog(search: string, equipment?: string, 
     equipment ?? null,
     equipment ?? null,
     muscle ?? null,
-    muscle ?? null
+    muscle ?? null,
   );
+
+  return rows.map(parseExerciseCatalogItem);
 }
 
 export async function loadRecentManualExercises(limit = 8) {
   const db = await dbPromise;
 
-  return db.getAllAsync<ExerciseCatalogItem>(
-    `SELECT ec.id, ec.name, ec.equipment, ec.muscle
+  const rows = await db.getAllAsync<ExerciseCatalogRow>(
+    `SELECT ec.id, ec.name, ec.equipment, ec.muscle, ec.primary_muscles, ec.secondary_muscles, ec.metadata
      FROM manual_exercise_adds mea
      JOIN exercise_catalog ec ON ec.id = mea.exercise_catalog_id
      GROUP BY ec.id
      ORDER BY MAX(mea.added_at) DESC
      LIMIT ?`,
-    limit
+    limit,
   );
+
+  return rows.map(parseExerciseCatalogItem);
 }
 
 export async function loadExerciseFilters() {
   const db = await dbPromise;
   const [equipmentRows, muscleRows] = await Promise.all([
     db.getAllAsync<{ equipment: string }>(
-      "SELECT DISTINCT equipment FROM exercise_catalog ORDER BY equipment ASC"
+      "SELECT DISTINCT equipment FROM exercise_catalog ORDER BY equipment ASC",
     ),
     db.getAllAsync<{ muscle: string }>(
-      "SELECT DISTINCT muscle FROM exercise_catalog ORDER BY muscle ASC"
-    )
+      "SELECT DISTINCT muscle FROM exercise_catalog ORDER BY muscle ASC",
+    ),
   ]);
 
   return {
     equipment: equipmentRows.map((row) => row.equipment),
-    muscle: muscleRows.map((row) => row.muscle)
+    muscle: muscleRows.map((row) => row.muscle),
   };
 }
 
@@ -777,8 +840,100 @@ export async function recordManualExerciseAdd(exerciseId: string) {
     "INSERT INTO manual_exercise_adds (id, exercise_catalog_id, added_at) VALUES (?, ?, ?)",
     createId("manual-exercise"),
     exerciseId,
-    Date.now()
+    Date.now(),
   );
+}
+
+export async function createCustomExercise(input: CreateCustomExerciseInput) {
+  const db = await dbPromise;
+  const name = input.name.trim();
+  const equipment = input.equipment.trim();
+  const primaryMuscle = input.primaryMuscle.trim();
+
+  if (!name) {
+    throw new Error("Exercise name is required.");
+  }
+
+  if (
+    !EXERCISE_EQUIPMENT_OPTIONS.includes(
+      equipment as (typeof EXERCISE_EQUIPMENT_OPTIONS)[number],
+    )
+  ) {
+    throw new Error("Choose a valid equipment type.");
+  }
+
+  if (
+    !MUSCLE_GROUP_OPTIONS.includes(
+      primaryMuscle as (typeof MUSCLE_GROUP_OPTIONS)[number],
+    )
+  ) {
+    throw new Error("Choose a valid primary muscle group.");
+  }
+
+  const secondaryMuscles = dedupeStrings(input.secondaryMuscles)
+    .filter((muscle) => muscle !== primaryMuscle)
+    .filter((muscle) =>
+      MUSCLE_GROUP_OPTIONS.includes(
+        muscle as (typeof MUSCLE_GROUP_OPTIONS)[number],
+      ),
+    );
+
+  const duplicate = await db.getFirstAsync<{ id: string }>(
+    `SELECT id
+     FROM exercise_catalog
+     WHERE lower(name) = lower(?)
+       AND lower(equipment) = lower(?)
+     LIMIT 1`,
+    name,
+    equipment,
+  );
+
+  if (duplicate) {
+    throw new Error("An exercise with that name and equipment already exists.");
+  }
+
+  const exerciseId = createId("custom-exercise");
+  await db.runAsync(
+    `INSERT INTO exercise_catalog
+      (id, name, equipment, muscle, primary_muscles, secondary_muscles, metadata)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    exerciseId,
+    name,
+    equipment,
+    primaryMuscle,
+    JSON.stringify([primaryMuscle]),
+    JSON.stringify(secondaryMuscles),
+    JSON.stringify({ global: false } satisfies ExerciseCatalogMetadata),
+  );
+
+  return exerciseId;
+}
+
+export async function deleteCustomExercise(exerciseId: string) {
+  const db = await dbPromise;
+  const row = await db.getFirstAsync<ExerciseCatalogRow>(
+    `SELECT id, name, equipment, muscle, primary_muscles, secondary_muscles, metadata
+     FROM exercise_catalog
+     WHERE id = ?`,
+    exerciseId,
+  );
+
+  if (!row) {
+    throw new Error("Exercise not found.");
+  }
+
+  const exercise = parseExerciseCatalogItem(row);
+  if (exercise.metadata.global) {
+    throw new Error("Bundled exercises cannot be deleted.");
+  }
+
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    await txn.runAsync(
+      "DELETE FROM manual_exercise_adds WHERE exercise_catalog_id = ?",
+      exerciseId,
+    );
+    await txn.runAsync("DELETE FROM exercise_catalog WHERE id = ?", exerciseId);
+  });
 }
 
 async function seedWorkoutRoutines() {
@@ -790,7 +945,7 @@ async function seedWorkoutRoutines() {
         "INSERT INTO workout_routines (id, name, description) VALUES (?, ?, ?)",
         routine.id,
         routine.name,
-        routine.description ?? null
+        routine.description ?? null,
       );
 
       for (const [exerciseIndex, exercise] of routine.exercises.entries()) {
@@ -804,7 +959,7 @@ async function seedWorkoutRoutines() {
           exercise.name,
           exercise.routineNotes,
           exerciseIndex,
-          exercise.restTimerSeconds
+          exercise.restTimerSeconds,
         );
 
         for (const [setIndex, set] of exercise.sets.entries()) {
@@ -819,7 +974,7 @@ async function seedWorkoutRoutines() {
             set.unit,
             set.pulleyMultiplier,
             set.enteredWeight || set.weightPlaceholder || null,
-            set.reps || set.repsPlaceholder || null
+            set.reps || set.repsPlaceholder || null,
           );
         }
       }
@@ -839,24 +994,36 @@ async function seedWorkoutHistory() {
         ...set,
         enteredWeight: set.weightPlaceholder ?? "",
         reps: set.repsPlaceholder ?? "",
-        completed: true
-      }))
-    }))
+        completed: true,
+      })),
+    })),
   };
 
   await saveWorkoutSession(seededSession);
 }
 
-async function seedExerciseCatalog() {
+async function syncExerciseCatalog() {
   const db = await dbPromise;
   await db.withExclusiveTransactionAsync(async (txn) => {
-    for (const exercise of EXERCISE_SEED) {
+    for (const exercise of GLOBAL_EXERCISE_CATALOG) {
       await txn.runAsync(
-        "INSERT INTO exercise_catalog (id, name, equipment, muscle) VALUES (?, ?, ?, ?)",
+        `INSERT INTO exercise_catalog
+          (id, name, equipment, muscle, primary_muscles, secondary_muscles, metadata)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           equipment = excluded.equipment,
+           muscle = excluded.muscle,
+           primary_muscles = excluded.primary_muscles,
+           secondary_muscles = excluded.secondary_muscles,
+           metadata = excluded.metadata`,
         exercise.id,
         exercise.name,
         exercise.equipment,
-        exercise.muscle
+        exercise.muscle,
+        JSON.stringify(exercise.primaryMuscles),
+        JSON.stringify(exercise.secondaryMuscles),
+        JSON.stringify(exercise.metadata),
       );
     }
   });
@@ -872,8 +1039,12 @@ async function backfillRoutineTemplates() {
 
   await db.withExclusiveTransactionAsync(async (txn) => {
     for (const routineExercise of routineExercises) {
-      const mockRoutine = mockRoutines.find((routine) => routine.id === routineExercise.routine_id);
-      const mockExercise = mockRoutine?.exercises.find((exercise) => exercise.name === routineExercise.exercise_name);
+      const mockRoutine = mockRoutines.find(
+        (routine) => routine.id === routineExercise.routine_id,
+      );
+      const mockExercise = mockRoutine?.exercises.find(
+        (exercise) => exercise.name === routineExercise.exercise_name,
+      );
       if (!mockExercise) {
         continue;
       }
@@ -881,7 +1052,7 @@ async function backfillRoutineTemplates() {
       await txn.runAsync(
         "UPDATE workout_routine_exercises SET rest_timer_seconds = ? WHERE id = ?",
         mockExercise.restTimerSeconds,
-        routineExercise.id
+        routineExercise.id,
       );
 
       for (const [setIndex, set] of mockExercise.sets.entries()) {
@@ -896,7 +1067,7 @@ async function backfillRoutineTemplates() {
           set.unit,
           set.pulleyMultiplier,
           set.enteredWeight || set.weightPlaceholder || null,
-          set.reps || set.repsPlaceholder || null
+          set.reps || set.repsPlaceholder || null,
         );
       }
     }
@@ -911,6 +1082,60 @@ function formatExerciseLabel(name: string, equipment: string) {
   return `${name} (${equipment})`;
 }
 
+type ExerciseCatalogRow = {
+  id: string;
+  name: string;
+  equipment: string;
+  muscle: string;
+  primary_muscles: string;
+  secondary_muscles: string;
+  metadata: string;
+};
+
+function parseExerciseCatalogItem(
+  row: ExerciseCatalogRow,
+): ExerciseCatalogItem {
+  return {
+    id: row.id,
+    name: row.name,
+    equipment: row.equipment,
+    muscle: row.muscle,
+    primaryMuscles: parseStringArray(row.primary_muscles),
+    secondaryMuscles: parseStringArray(row.secondary_muscles),
+    metadata: parseExerciseMetadata(row.metadata),
+  };
+}
+
+function parseStringArray(value: string) {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseExerciseMetadata(value: string): ExerciseCatalogMetadata {
+  try {
+    const parsed = JSON.parse(value) as Partial<ExerciseCatalogMetadata>;
+    return {
+      global: parsed.global === true,
+    };
+  } catch {
+    return {
+      global: false,
+    };
+  }
+}
+
+function dedupeStrings(values: string[]) {
+  return Array.from(
+    new Set(values.map((value) => value.trim()).filter(Boolean)),
+  );
+}
+
 async function getExerciseHistoryMap() {
   const db = await dbPromise;
 
@@ -923,7 +1148,7 @@ async function getExerciseHistoryMap() {
     `SELECT se.exercise_name, ss.weight_value, ss.reps, ss.pulley_multiplier
      FROM workout_session_sets ss
      JOIN workout_session_exercises se ON se.id = ss.session_exercise_id
-     WHERE ss.completed = 1`
+     WHERE ss.completed = 1`,
   );
 
   const latestRows = await db.getAllAsync<{
@@ -951,13 +1176,14 @@ async function getExerciseHistoryMap() {
       JOIN workout_session_exercises se ON se.id = ss.session_exercise_id
       JOIN workout_sessions s ON s.id = se.session_id
       WHERE ss.completed = 1
-      ORDER BY se.exercise_name ASC, s.started_at DESC, ss.set_order ASC`
+      ORDER BY se.exercise_name ASC, s.started_at DESC, ss.set_order ASC`,
   );
 
   const benchmarks: ExerciseHistoryMap = {};
 
   benchmarkRows.forEach((row) => {
-    const effectiveWeight = Number(row.weight_value) * Number(row.pulley_multiplier);
+    const effectiveWeight =
+      Number(row.weight_value) * Number(row.pulley_multiplier);
     const volume = effectiveWeight * Number(row.reps);
     const pr = effectiveWeight * (1 + Number(row.reps) / 30);
     const current = benchmarks[row.exercise_name] ?? {
@@ -965,12 +1191,18 @@ async function getExerciseHistoryMap() {
       benchmarks: {
         bestWeight: 0,
         bestVolume: 0,
-        bestPr: 0
-      }
+        bestPr: 0,
+      },
     };
 
-    current.benchmarks.bestWeight = Math.max(current.benchmarks.bestWeight, effectiveWeight);
-    current.benchmarks.bestVolume = Math.max(current.benchmarks.bestVolume, volume);
+    current.benchmarks.bestWeight = Math.max(
+      current.benchmarks.bestWeight,
+      effectiveWeight,
+    );
+    current.benchmarks.bestVolume = Math.max(
+      current.benchmarks.bestVolume,
+      volume,
+    );
     current.benchmarks.bestPr = Math.max(current.benchmarks.bestPr, pr);
     benchmarks[row.exercise_name] = current;
   });
@@ -983,8 +1215,8 @@ async function getExerciseHistoryMap() {
       benchmarks: {
         bestWeight: 0,
         bestVolume: 0,
-        bestPr: 0
-      }
+        bestPr: 0,
+      },
     };
 
     const trackedSessionId = seenLatestSession.get(row.exercise_name);
@@ -1001,7 +1233,7 @@ async function getExerciseHistoryMap() {
       weightPlaceholder: trimNumber(row.weight_value),
       repsPlaceholder: String(row.reps),
       unit: row.weight_unit,
-      pulleyMultiplier: Number(row.pulley_multiplier) === 0.5 ? 0.5 : 1
+      pulleyMultiplier: Number(row.pulley_multiplier) === 0.5 ? 0.5 : 1,
     });
 
     benchmarks[row.exercise_name] = current;
@@ -1013,9 +1245,15 @@ async function getExerciseHistoryMap() {
 function createSessionExerciseFromHistory(
   exerciseName: string,
   notes: string,
-  history?: ExerciseHistorySummary
+  history?: ExerciseHistorySummary,
 ): WorkoutExercise {
-  return createSessionExerciseFromHistoryAndRoutine(exerciseName, notes, history, 0, []);
+  return createSessionExerciseFromHistoryAndRoutine(
+    exerciseName,
+    notes,
+    history,
+    0,
+    [],
+  );
 }
 
 function createSessionExerciseFromHistoryAndRoutine(
@@ -1029,7 +1267,7 @@ function createSessionExerciseFromHistoryAndRoutine(
     pulleyMultiplier: 1 | 0.5;
     targetWeight: string;
     targetReps: string;
-  }>
+  }>,
 ): WorkoutExercise {
   const latestSets = history?.latestSets ?? [];
   const setCount = routineSets.length || latestSets.length || 3;
@@ -1043,7 +1281,7 @@ function createSessionExerciseFromHistoryAndRoutine(
     benchmarks: history?.benchmarks ?? {
       bestWeight: 0,
       bestVolume: 0,
-      bestPr: 0
+      bestPr: 0,
     },
     sets: Array.from({ length: setCount }, (_, index) => {
       const latestSet = latestSets[index];
@@ -1054,13 +1292,16 @@ function createSessionExerciseFromHistoryAndRoutine(
         previous: latestSet?.previous ?? "No data",
         enteredWeight: "",
         reps: "",
-        weightPlaceholder: latestSet?.weightPlaceholder ?? routineSet?.targetWeight ?? "",
-        repsPlaceholder: latestSet?.repsPlaceholder ?? routineSet?.targetReps ?? "",
+        weightPlaceholder:
+          latestSet?.weightPlaceholder ?? routineSet?.targetWeight ?? "",
+        repsPlaceholder:
+          latestSet?.repsPlaceholder ?? routineSet?.targetReps ?? "",
         completed: false,
         unit: latestSet?.unit ?? routineSet?.unit ?? "kg",
-        pulleyMultiplier: latestSet?.pulleyMultiplier ?? routineSet?.pulleyMultiplier ?? 1
+        pulleyMultiplier:
+          latestSet?.pulleyMultiplier ?? routineSet?.pulleyMultiplier ?? 1,
       };
-    })
+    }),
   };
 }
 
@@ -1069,5 +1310,7 @@ function createId(prefix: string) {
 }
 
 function trimNumber(value: number) {
-  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
+  return Number.isInteger(value)
+    ? String(value)
+    : String(Number(value.toFixed(2)));
 }
