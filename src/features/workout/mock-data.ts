@@ -56,7 +56,7 @@ const routineExercises: WorkoutExercise[] = [
     benchmarks: {
       bestWeight: 32,
       bestVolume: 320,
-      bestPr: 40
+      bestPr: 40,
     },
     sets: [
       {
@@ -69,7 +69,7 @@ const routineExercises: WorkoutExercise[] = [
         repsPlaceholder: "10",
         completed: false,
         unit: "kg",
-        pulleyMultiplier: 1
+        pulleyMultiplier: 1,
       },
       {
         id: "incline-set-2",
@@ -81,7 +81,7 @@ const routineExercises: WorkoutExercise[] = [
         repsPlaceholder: "8",
         completed: false,
         unit: "kg",
-        pulleyMultiplier: 1
+        pulleyMultiplier: 1,
       },
       {
         id: "incline-set-3",
@@ -93,9 +93,9 @@ const routineExercises: WorkoutExercise[] = [
         repsPlaceholder: "11",
         completed: false,
         unit: "kg",
-        pulleyMultiplier: 1
-      }
-    ]
+        pulleyMultiplier: 1,
+      },
+    ],
   },
   {
     id: "lat-pulldown",
@@ -106,7 +106,7 @@ const routineExercises: WorkoutExercise[] = [
     benchmarks: {
       bestWeight: 65,
       bestVolume: 720,
-      bestPr: 87
+      bestPr: 87,
     },
     sets: [
       {
@@ -119,7 +119,7 @@ const routineExercises: WorkoutExercise[] = [
         repsPlaceholder: "12",
         completed: false,
         unit: "kg",
-        pulleyMultiplier: 0.5
+        pulleyMultiplier: 0.5,
       },
       {
         id: "lat-set-2",
@@ -131,7 +131,7 @@ const routineExercises: WorkoutExercise[] = [
         repsPlaceholder: "10",
         completed: false,
         unit: "kg",
-        pulleyMultiplier: 0.5
+        pulleyMultiplier: 0.5,
       },
       {
         id: "lat-set-3",
@@ -143,10 +143,10 @@ const routineExercises: WorkoutExercise[] = [
         repsPlaceholder: "12",
         completed: false,
         unit: "kg",
-        pulleyMultiplier: 0.5
-      }
-    ]
-  }
+        pulleyMultiplier: 0.5,
+      },
+    ],
+  },
 ];
 
 export const mockRoutines: WorkoutRoutine[] = [
@@ -158,9 +158,9 @@ export const mockRoutines: WorkoutRoutine[] = [
       "Incline Dumbbell Press",
       "Seated Shoulder Press",
       "Cable Lateral Raise",
-      "Triceps Pushdown"
+      "Triceps Pushdown",
     ],
-    exercises: routineExercises
+    exercises: routineExercises,
   },
   {
     id: "pull-a",
@@ -170,7 +170,7 @@ export const mockRoutines: WorkoutRoutine[] = [
       "Wide Grip Lat Pulldown",
       "Chest Supported Row",
       "Cable Curl",
-      "Rear Delt Fly"
+      "Rear Delt Fly",
     ],
     exercises: [
       routineExercises[1],
@@ -179,24 +179,30 @@ export const mockRoutines: WorkoutRoutine[] = [
         id: "row-variation",
         name: "Chest Supported Row",
         routineNotes: "Drive elbows low and keep the chest glued to the pad.",
-        sessionNotes: "Drive elbows low and keep the chest glued to the pad."
-      }
-    ]
-  }
+        sessionNotes: "Drive elbows low and keep the chest glued to the pad.",
+      },
+    ],
+  },
 ];
 
 export const exerciseCatalog = Array.from(
   new Set(
-    mockRoutines.flatMap((routine) => routine.exercises.map((exercise) => exercise.name))
-  )
+    mockRoutines.flatMap((routine) =>
+      routine.exercises.map((exercise) => exercise.name),
+    ),
+  ),
 ).sort();
 
 export function createEmptySession(): WorkoutSession {
   return {
-    id: "session-empty",
+    id: createId("session-empty"),
     name: "Empty Workout",
     startedAt: Date.now(),
     exercises: [],
-    notes: ""
+    notes: "",
   };
+}
+
+function createId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }

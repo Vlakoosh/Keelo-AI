@@ -144,6 +144,14 @@ export const GLOBAL_EXERCISE_CATALOG: ExerciseCatalogSeedItem[] = [
     ["Forearms"],
   ),
   createExercise(
+    "ez-bar-preacher-curl-barbell",
+    "EZ Bar Preacher Curl",
+    "Barbell",
+    "Biceps",
+    ["Biceps"],
+    ["Forearms"],
+  ),
+  createExercise(
     "lying-tricep-extension-barbell",
     "Lying Tricep Extension",
     "Barbell",
@@ -231,6 +239,14 @@ export const GLOBAL_EXERCISE_CATALOG: ExerciseCatalogSeedItem[] = [
     "Hamstrings",
     ["Hamstrings"],
     ["Glutes", "Lower Back", "Forearms"],
+  ),
+  createExercise(
+    "pullover-dumbbell",
+    "Pullover",
+    "Dumbbell",
+    "Lats",
+    ["Lats", "Chest"],
+    ["Triceps", "Shoulders"],
   ),
 
   createExercise(
@@ -347,6 +363,14 @@ export const GLOBAL_EXERCISE_CATALOG: ExerciseCatalogSeedItem[] = [
     ["Shoulders", "Triceps", "Lats"],
   ),
   createExercise(
+    "assisted-tricep-dip-machine",
+    "Assisted Tricep Dip",
+    "Machine",
+    "Triceps",
+    ["Triceps"],
+    ["Chest", "Shoulders"],
+  ),
+  createExercise(
     "shoulder-press-machine",
     "Shoulder Press",
     "Machine",
@@ -443,6 +467,14 @@ export const GLOBAL_EXERCISE_CATALOG: ExerciseCatalogSeedItem[] = [
     [],
   ),
   createExercise(
+    "leg-extension-machine",
+    "Leg Extension",
+    "Machine",
+    "Quads",
+    ["Quads"],
+    [],
+  ),
+  createExercise(
     "seated-leg-curl-machine",
     "Seated Leg Curl",
     "Machine",
@@ -469,6 +501,14 @@ export const GLOBAL_EXERCISE_CATALOG: ExerciseCatalogSeedItem[] = [
   createExercise(
     "standing-calf-raise-machine",
     "Standing Calf Raise",
+    "Machine",
+    "Calves",
+    ["Calves"],
+    [],
+  ),
+  createExercise(
+    "hack-squat-standing-calf-raise-machine",
+    "Hack Squat Standing Calf Raise",
     "Machine",
     "Calves",
     ["Calves"],

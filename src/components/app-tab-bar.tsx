@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useEffect, useRef } from "react";
 import { Alert, Animated, Pressable, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useActiveWorkout } from "@/features/workout/active-workout-provider";
 import { getWorkoutDurationSeconds } from "@/features/workout/session-utils";
@@ -10,13 +11,24 @@ import { useAppTheme } from "@/theme/theme-provider";
 const tabIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   food: "nutrition-outline",
   workout: "barbell-outline",
-  settings: "options-outline"
+  settings: "options-outline",
 };
 
-export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+export function AppTabBar({
+  state,
+  descriptors,
+  navigation,
+}: BottomTabBarProps) {
   const { theme } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const pulse = useRef(new Animated.Value(1)).current;
-  const { activeWorkout, discardActiveWorkout, lastEditedExerciseName, requestResume } = useActiveWorkout();
+  const {
+    activeWorkout,
+    discardActiveWorkout,
+    isActiveWorkoutVisible,
+    lastEditedExerciseName,
+    requestResume,
+  } = useActiveWorkout();
   const visibleRoutes = state.routes.filter((route) => route.name in tabIcons);
 
   useEffect(() => {
@@ -28,9 +40,17 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
 
     const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 0.45, duration: 700, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true })
-      ])
+        Animated.timing(pulse, {
+          toValue: 0.45,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ]),
     );
     animation.start();
 
@@ -38,11 +58,23 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
   }, [activeWorkout, pulse]);
 
   return (
-    <View className="px-3 pb-3 pt-2" style={{ borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.background }}>
-      {activeWorkout ? (
+    <View
+      className="px-3 pt-2"
+      style={{
+        paddingBottom: Math.max(insets.bottom, 12),
+        borderTopWidth: 1,
+        borderTopColor: theme.border,
+        backgroundColor: theme.background,
+      }}
+    >
+      {activeWorkout && !isActiveWorkoutVisible ? (
         <View
           className="mb-3 flex-row items-center gap-3 rounded-card px-4 py-3"
-          style={{ borderWidth: 1, borderColor: theme.quaternary, backgroundColor: theme.tertiary }}
+          style={{
+            borderWidth: 1,
+            borderColor: theme.quaternary,
+            backgroundColor: theme.tertiary,
+          }}
         >
           <Pressable
             onPress={() => {
@@ -65,11 +97,19 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
                 className="h-2.5 w-2.5 rounded-full"
                 style={{ backgroundColor: theme.protein, opacity: pulse }}
               />
-              <Text className="text-sm font-semibold" style={{ color: theme.text }}>
-                Workout: {formatDuration(getWorkoutDurationSeconds(activeWorkout))}
+              <Text
+                className="text-sm font-semibold"
+                style={{ color: theme.text }}
+              >
+                Workout:{" "}
+                {formatDuration(getWorkoutDurationSeconds(activeWorkout))}
               </Text>
             </View>
-            <Text className="mt-1 text-sm" numberOfLines={1} style={{ color: theme.muted }}>
+            <Text
+              className="mt-1 text-sm"
+              numberOfLines={1}
+              style={{ color: theme.muted }}
+            >
               {lastEditedExerciseName || "Workout in progress"}
             </Text>
           </Pressable>
@@ -77,7 +117,11 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
             onPress={() => {
               Alert.alert("Discard workout", "Discard the active workout?", [
                 { text: "Cancel", style: "cancel" },
-                { text: "Discard", style: "destructive", onPress: discardActiveWorkout }
+                {
+                  text: "Discard",
+                  style: "destructive",
+                  onPress: discardActiveWorkout,
+                },
               ]);
             }}
             className="h-10 w-10 items-center justify-center"
@@ -88,7 +132,9 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
       ) : null}
       <View className="flex-row gap-2">
         {visibleRoutes.map((route) => {
-          const index = state.routes.findIndex((item) => item.key === route.key);
+          const index = state.routes.findIndex(
+            (item) => item.key === route.key,
+          );
           const isFocused = state.index === index;
           return (
             <Pressable

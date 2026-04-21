@@ -4,6 +4,7 @@
   "main": "index.ts",
   "scripts": {
     "start": "npm run tailwind:build && expo start",
+    "start:tunnel": "npm run tailwind:build && expo start --clear --tunnel",
     "dev": "npm run tailwind:build && expo start --clear",
     "android": "npm run tailwind:build && expo start --android",
     "ios": "npm run tailwind:build && expo start --ios",

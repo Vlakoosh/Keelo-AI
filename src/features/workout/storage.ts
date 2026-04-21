@@ -69,8 +69,20 @@ export type WorkoutSessionDetail = WorkoutSession & {
 };
 
 const dbPromise = SQLite.openDatabaseAsync("keelo.db");
+let initializeWorkoutStoragePromise: Promise<void> | null = null;
 
 export async function initializeWorkoutStorage() {
+  initializeWorkoutStoragePromise ??= initializeWorkoutStorageOnce().catch(
+    (error) => {
+      initializeWorkoutStoragePromise = null;
+      throw error;
+    },
+  );
+
+  return initializeWorkoutStoragePromise;
+}
+
+async function initializeWorkoutStorageOnce() {
   const db = await dbPromise;
 
   await db.execAsync(`
@@ -706,6 +718,15 @@ export async function saveWorkoutSession(session: WorkoutSession) {
     session.startedAt + getWorkoutDurationSeconds(session) * 1000;
 
   await db.withExclusiveTransactionAsync(async (txn) => {
+    const existingSession = await txn.getFirstAsync<{ id: string }>(
+      "SELECT id FROM workout_sessions WHERE id = ?",
+      session.id,
+    );
+
+    if (existingSession) {
+      return;
+    }
+
     await txn.runAsync(
       `INSERT INTO workout_sessions (id, name, source_routine_id, started_at, finished_at, notes)
        VALUES (?, ?, ?, ?, ?, ?)`,

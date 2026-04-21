@@ -1,5 +1,7 @@
 import "../.nativewind/tailwind.css";
 
+import { Ionicons } from "@expo/vector-icons";
+import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
@@ -21,10 +23,15 @@ export default function RootLayout() {
 
 function ThemedRootLayout() {
   const { theme, mode } = useAppTheme();
+  const [fontsLoaded] = useFonts(Ionicons.font);
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(theme.background);
   }, [theme.background]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <SafeAreaProvider>
@@ -33,8 +40,8 @@ function ThemedRootLayout() {
         screenOptions={{
           headerShown: false,
           contentStyle: {
-            backgroundColor: theme.background
-          }
+            backgroundColor: theme.background,
+          },
         }}
       >
         <Stack.Screen name="(tabs)" />

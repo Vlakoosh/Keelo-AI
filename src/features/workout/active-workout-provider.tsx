@@ -8,15 +8,26 @@ type ActiveWorkoutContextValue = {
   discardActiveWorkout: () => void;
   lastEditedExerciseName: string;
   setLastEditedExerciseName: (name: string) => void;
+  isActiveWorkoutVisible: boolean;
+  setIsActiveWorkoutVisible: (isVisible: boolean) => void;
   resumeSignal: number;
   requestResume: () => void;
 };
 
-const ActiveWorkoutContext = createContext<ActiveWorkoutContextValue | null>(null);
+const ActiveWorkoutContext = createContext<ActiveWorkoutContextValue | null>(
+  null,
+);
 
-export function ActiveWorkoutProvider({ children }: { children: React.ReactNode }) {
-  const [activeWorkout, setActiveWorkout] = useState<WorkoutSession | null>(null);
+export function ActiveWorkoutProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [activeWorkout, setActiveWorkout] = useState<WorkoutSession | null>(
+    null,
+  );
   const [lastEditedExerciseName, setLastEditedExerciseName] = useState("");
+  const [isActiveWorkoutVisible, setIsActiveWorkoutVisible] = useState(false);
   const [resumeSignal, setResumeSignal] = useState(0);
 
   const value = useMemo<ActiveWorkoutContextValue>(
@@ -29,10 +40,17 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
       },
       lastEditedExerciseName,
       setLastEditedExerciseName,
+      isActiveWorkoutVisible,
+      setIsActiveWorkoutVisible,
       resumeSignal,
-      requestResume: () => setResumeSignal((current) => current + 1)
+      requestResume: () => setResumeSignal((current) => current + 1),
     }),
-    [activeWorkout, lastEditedExerciseName, resumeSignal]
+    [
+      activeWorkout,
+      isActiveWorkoutVisible,
+      lastEditedExerciseName,
+      resumeSignal,
+    ],
   );
 
   return (
@@ -45,7 +63,9 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
 export function useActiveWorkout() {
   const context = useContext(ActiveWorkoutContext);
   if (!context) {
-    throw new Error("useActiveWorkout must be used within ActiveWorkoutProvider");
+    throw new Error(
+      "useActiveWorkout must be used within ActiveWorkoutProvider",
+    );
   }
 
   return context;
