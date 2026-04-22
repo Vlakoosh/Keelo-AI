@@ -1208,6 +1208,7 @@ function ExerciseCard({
   openSheet: (sheet: Sheet) => void;
   onCheck: (setId: string, done: boolean) => void;
 }) {
+  const router = useRouter();
   const { theme } = useAppTheme();
   const medals = getMedalMap(exercise);
   const displayUnit = exercise.sets[0]?.unit ?? "kg";
@@ -1217,12 +1218,19 @@ function ExerciseCard({
       style={{ borderBottomWidth: 1, borderBottomColor: theme.tertiary }}
     >
       <View className="flex-row items-center justify-between gap-3">
-        <Text
-          className="flex-1 text-xl font-semibold"
-          style={{ color: theme.text }}
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: "/exercises/[name]",
+              params: { name: exercise.name },
+            })
+          }
+          className="flex-1 py-1"
         >
-          {exercise.name}
-        </Text>
+          <Text className="text-xl font-semibold" style={{ color: theme.text }}>
+            {exercise.name}
+          </Text>
+        </Pressable>
         <Pressable
           onPress={() => openSheet({ type: "exercise", id: exercise.id })}
           className="h-10 w-10 items-center justify-center"

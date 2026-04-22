@@ -1,9 +1,21 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 import { PageHeader } from "@/components/page-header";
-import { type WorkoutSessionDetail, deleteWorkoutSession, loadWorkoutSessionById, updateWorkoutSessionMeta } from "@/features/workout/storage";
+import {
+  type WorkoutSessionDetail,
+  deleteWorkoutSession,
+  loadWorkoutSessionById,
+  updateWorkoutSessionMeta,
+} from "@/features/workout/storage";
 import { useAppTheme } from "@/theme/theme-provider";
 
 export default function WorkoutDetailScreen() {
@@ -30,15 +42,24 @@ export default function WorkoutDetailScreen() {
   }, [params.id]);
 
   if (!workout) {
-    return <View className="flex-1" style={{ backgroundColor: theme.background }} />;
+    return (
+      <View className="flex-1" style={{ backgroundColor: theme.background }} />
+    );
   }
 
   const activeWorkout = workout;
 
-  const durationSeconds = Math.max(0, Math.floor((activeWorkout.finishedAt - activeWorkout.startedAt) / 1000));
+  const durationSeconds = Math.max(
+    0,
+    Math.floor((activeWorkout.finishedAt - activeWorkout.startedAt) / 1000),
+  );
   const setCount = activeWorkout.exercises.reduce(
-    (sum, exercise) => sum + exercise.sets.filter((set) => set.type === "normal" || set.type === "failure").length,
-    0
+    (sum, exercise) =>
+      sum +
+      exercise.sets.filter(
+        (set) => set.type === "normal" || set.type === "failure",
+      ).length,
+    0,
   );
   const volume = activeWorkout.exercises.reduce(
     (sum, exercise) =>
@@ -47,12 +68,18 @@ export default function WorkoutDetailScreen() {
         const weight = Number(set.enteredWeight || 0) * set.pulleyMultiplier;
         return exerciseSum + weight * Number(set.reps || 0);
       }, 0),
-    0
+    0,
   );
 
   async function handleSave() {
-    await updateWorkoutSessionMeta(activeWorkout.id, { name: activeWorkout.name, notes: activeWorkout.notes });
-    router.replace({ pathname: "/workouts/[id]", params: { id: activeWorkout.id } });
+    await updateWorkoutSessionMeta(activeWorkout.id, {
+      name: activeWorkout.name,
+      notes: activeWorkout.notes,
+    });
+    router.replace({
+      pathname: "/workouts/[id]",
+      params: { id: activeWorkout.id },
+    });
   }
 
   return (
@@ -60,60 +87,151 @@ export default function WorkoutDetailScreen() {
       <PageHeader
         title="Workout"
         onBack={() => router.back()}
-        rightSlot={isEdit ? <Pressable onPress={() => { void handleSave(); }} className="px-1 py-2"><Text className="text-base font-semibold uppercase tracking-[1px]" style={{ color: theme.secondary }}>Save</Text></Pressable> : undefined}
+        rightSlot={
+          isEdit ? (
+            <Pressable
+              onPress={() => {
+                void handleSave();
+              }}
+              className="px-1 py-2"
+            >
+              <Text
+                className="text-base font-semibold uppercase tracking-[1px]"
+                style={{ color: theme.secondary }}
+              >
+                Save
+              </Text>
+            </Pressable>
+          ) : undefined
+        }
       />
-      <ScrollView className="flex-1" contentContainerClassName="gap-5 px-5 pb-10 pt-4">
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="gap-5 px-5 pb-10 pt-4"
+      >
         {isEdit ? (
           <TextInput
             value={activeWorkout.name}
-            onChangeText={(text) => setWorkout((current) => (current ? { ...current, name: text } : current))}
+            onChangeText={(text) =>
+              setWorkout((current) =>
+                current ? { ...current, name: text } : current,
+              )
+            }
             className="text-3xl font-semibold"
             style={{ color: theme.secondary }}
           />
         ) : (
-          <Text className="text-3xl font-semibold" style={{ color: theme.secondary }}>{activeWorkout.name}</Text>
+          <Text
+            className="text-3xl font-semibold"
+            style={{ color: theme.secondary }}
+          >
+            {activeWorkout.name}
+          </Text>
         )}
-        <Text className="text-sm" style={{ color: theme.muted }}>{formatDateTime(activeWorkout.startedAt)}</Text>
+        <Text className="text-sm" style={{ color: theme.muted }}>
+          {formatDateTime(activeWorkout.startedAt)}
+        </Text>
         {isEdit ? (
           <TextInput
             multiline
             value={activeWorkout.notes}
-            onChangeText={(text) => setWorkout((current) => (current ? { ...current, notes: text } : current))}
+            onChangeText={(text) =>
+              setWorkout((current) =>
+                current ? { ...current, notes: text } : current,
+              )
+            }
             placeholder="Add notes"
             placeholderTextColor={theme.muted}
             className="min-h-[64px] text-base"
             style={{ color: theme.text }}
           />
         ) : activeWorkout.notes ? (
-          <Text className="text-base leading-6" style={{ color: theme.text }}>{activeWorkout.notes}</Text>
+          <Text className="text-base leading-6" style={{ color: theme.text }}>
+            {activeWorkout.notes}
+          </Text>
         ) : null}
-        <View className="flex-row border-y py-4" style={{ borderColor: theme.tertiary }}>
-          <Metric value={fmt(durationSeconds)} label="Duration" dividerColor={theme.tertiary} />
-          <Metric value={`${setCount}`} label="Sets" dividerColor={theme.tertiary} />
+        <View
+          className="flex-row border-y py-4"
+          style={{ borderColor: theme.tertiary }}
+        >
+          <Metric
+            value={fmt(durationSeconds)}
+            label="Duration"
+            dividerColor={theme.tertiary}
+          />
+          <Metric
+            value={`${setCount}`}
+            label="Sets"
+            dividerColor={theme.tertiary}
+          />
           <Metric value={`${volume.toFixed(0)} kg`} label="Volume" />
         </View>
-        <Text className="text-sm font-medium" style={{ color: theme.muted }}>Exercises</Text>
+        <Text className="text-sm font-medium" style={{ color: theme.muted }}>
+          Exercises
+        </Text>
         {activeWorkout.exercises.map((exercise) => (
           <View key={exercise.id} className="gap-3 py-2">
-            <Text className="text-xl font-semibold" style={{ color: theme.text }}>{exercise.name}</Text>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/exercises/[name]",
+                  params: { name: exercise.name },
+                })
+              }
+              className="py-1"
+            >
+              <Text
+                className="text-xl font-semibold"
+                style={{ color: theme.text }}
+              >
+                {exercise.name}
+              </Text>
+            </Pressable>
             <View className="gap-2">
               {exercise.sets.map((set) => (
                 <View key={set.id} className="flex-row items-center gap-3">
-                  <View className="rounded-card px-3 py-2" style={{ backgroundColor: theme.tertiary }}>
-                    <Text className="text-sm font-semibold" style={{ color: theme.text }}>
-                      {set.type === "warmup" ? "W" : set.type === "drop" ? "D" : set.type === "failure" ? "F" : setNumber(exercise.sets, set.id)}
+                  <View
+                    className="rounded-card px-3 py-2"
+                    style={{ backgroundColor: theme.tertiary }}
+                  >
+                    <Text
+                      className="text-sm font-semibold"
+                      style={{ color: theme.text }}
+                    >
+                      {set.type === "warmup"
+                        ? "W"
+                        : set.type === "drop"
+                          ? "D"
+                          : set.type === "failure"
+                            ? "F"
+                            : setNumber(exercise.sets, set.id)}
                     </Text>
                   </View>
                   <Text className="text-sm" style={{ color: theme.text }}>
-                    {trimValue(set.enteredWeight)} {set.unit} x {set.reps} = {(Number(set.enteredWeight || 0) * set.pulleyMultiplier * Number(set.reps || 0)).toFixed(0)} kg
+                    {trimValue(set.enteredWeight)} {set.unit} x {set.reps} ={" "}
+                    {(
+                      Number(set.enteredWeight || 0) *
+                      set.pulleyMultiplier *
+                      Number(set.reps || 0)
+                    ).toFixed(0)}{" "}
+                    kg
                   </Text>
                 </View>
               ))}
             </View>
             <View className="flex-row flex-wrap gap-2">
               {medalChips(exercise).map((chip) => (
-                <View key={chip} className="rounded-full px-3 py-2" style={{ backgroundColor: theme.tertiary }}>
-                  <Text className="text-xs font-semibold" style={{ color: theme.secondary }}>{chip}</Text>
+                <View
+                  key={chip}
+                  className="rounded-full px-3 py-2"
+                  style={{ backgroundColor: theme.tertiary }}
+                >
+                  <Text
+                    className="text-xs font-semibold"
+                    style={{ color: theme.secondary }}
+                  >
+                    {chip}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -121,11 +239,52 @@ export default function WorkoutDetailScreen() {
         ))}
         {!isEdit ? (
           <View className="gap-3 pt-2">
-            <Pressable onPress={() => router.push({ pathname: "/workouts/[id]", params: { id: activeWorkout.id, mode: "edit" } })} className="rounded-card px-4 py-4" style={{ borderWidth: 1, borderColor: theme.quaternary, backgroundColor: theme.tertiary }}>
-              <Text className="text-base font-semibold" style={{ color: theme.text }}>Edit Workout</Text>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/workouts/[id]",
+                  params: { id: activeWorkout.id, mode: "edit" },
+                })
+              }
+              className="rounded-card px-4 py-4"
+              style={{
+                borderWidth: 1,
+                borderColor: theme.quaternary,
+                backgroundColor: theme.tertiary,
+              }}
+            >
+              <Text
+                className="text-base font-semibold"
+                style={{ color: theme.text }}
+              >
+                Edit Workout
+              </Text>
             </Pressable>
-            <Pressable onPress={() => { void deleteWorkoutSession(activeWorkout.id).then(() => router.back()).catch((error) => { console.error(error); Alert.alert("Delete workout", "Unable to delete this workout."); }); }} className="rounded-card px-4 py-4" style={{ borderWidth: 1, borderColor: "#EF4444", backgroundColor: "rgba(239,68,68,0.1)" }}>
-              <Text className="text-base font-semibold" style={{ color: "#FCA5A5" }}>Delete Workout</Text>
+            <Pressable
+              onPress={() => {
+                void deleteWorkoutSession(activeWorkout.id)
+                  .then(() => router.back())
+                  .catch((error) => {
+                    console.error(error);
+                    Alert.alert(
+                      "Delete workout",
+                      "Unable to delete this workout.",
+                    );
+                  });
+              }}
+              className="rounded-card px-4 py-4"
+              style={{
+                borderWidth: 1,
+                borderColor: "#EF4444",
+                backgroundColor: "rgba(239,68,68,0.1)",
+              }}
+            >
+              <Text
+                className="text-base font-semibold"
+                style={{ color: "#FCA5A5" }}
+              >
+                Delete Workout
+              </Text>
             </Pressable>
           </View>
         ) : null}
@@ -143,7 +302,7 @@ function medalChips(exercise: WorkoutSessionDetail["exercises"][number]) {
       return {
         weight,
         volume: weight * reps,
-        pr: weight * (1 + reps / 30)
+        pr: weight * (1 + reps / 30),
       };
     });
 
@@ -159,23 +318,52 @@ function medalChips(exercise: WorkoutSessionDetail["exercises"][number]) {
   return chips;
 }
 
-function Metric({ label, value, dividerColor }: { label: string; value: string; dividerColor?: string }) {
+function Metric({
+  label,
+  value,
+  dividerColor,
+}: {
+  label: string;
+  value: string;
+  dividerColor?: string;
+}) {
   const { theme } = useAppTheme();
-  return <View className="flex-1 items-center justify-center" style={dividerColor ? { borderRightWidth: 1, borderRightColor: dividerColor } : undefined}><Text className="text-2xl font-semibold" style={{ color: theme.text }}>{value}</Text><Text className="mt-2 text-sm" style={{ color: theme.muted }}>{label}</Text></View>;
+  return (
+    <View
+      className="flex-1 items-center justify-center"
+      style={
+        dividerColor
+          ? { borderRightWidth: 1, borderRightColor: dividerColor }
+          : undefined
+      }
+    >
+      <Text className="text-2xl font-semibold" style={{ color: theme.text }}>
+        {value}
+      </Text>
+      <Text className="mt-2 text-sm" style={{ color: theme.muted }}>
+        {label}
+      </Text>
+    </View>
+  );
 }
 
 function fmt(seconds: number) {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   const h = Math.floor(m / 60);
-  return h > 0 ? `${h}:${String(m % 60).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
+  return h > 0
+    ? `${h}:${String(m % 60).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+    : `${m}:${String(s).padStart(2, "0")}`;
 }
 
 function formatDateTime(value: number) {
   return new Date(value).toLocaleString();
 }
 
-function setNumber(sets: WorkoutSessionDetail["exercises"][number]["sets"], setId: string) {
+function setNumber(
+  sets: WorkoutSessionDetail["exercises"][number]["sets"],
+  setId: string,
+) {
   let count = 0;
   for (const set of sets) {
     if (set.type === "normal" || set.type === "failure") count += 1;
@@ -186,5 +374,7 @@ function setNumber(sets: WorkoutSessionDetail["exercises"][number]["sets"], setI
 
 function trimValue(value: string) {
   const numeric = Number(value);
-  return Number.isInteger(numeric) ? String(numeric) : String(Number(numeric.toFixed(2)));
+  return Number.isInteger(numeric)
+    ? String(numeric)
+    : String(Number(numeric.toFixed(2)));
 }

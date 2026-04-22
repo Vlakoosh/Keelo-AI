@@ -272,14 +272,25 @@ function RoutineExerciseCard({
   addSet: () => void;
   openSheet: (sheet: Sheet) => void;
 }) {
+  const router = useRouter();
   const displayUnit = exercise.sets[0]?.unit ?? "kg";
 
   return (
     <View className="gap-4 border-b border-tertiary py-5">
       <View className="flex-row items-center justify-between gap-3">
-        <Text className="flex-1 text-xl font-semibold text-text">
-          {exercise.name}
-        </Text>
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: "/exercises/[name]",
+              params: { name: exercise.name },
+            })
+          }
+          className="flex-1 py-1"
+        >
+          <Text className="text-xl font-semibold text-text">
+            {exercise.name}
+          </Text>
+        </Pressable>
         <Pressable
           onPress={() => openSheet({ type: "exercise", id: exercise.id })}
           className="h-10 w-10 items-center justify-center"

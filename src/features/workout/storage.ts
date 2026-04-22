@@ -68,6 +68,44 @@ export type WorkoutSessionDetail = WorkoutSession & {
   finishedAt: number;
 };
 
+export type ExerciseHistorySet = {
+  id: string;
+  type: SetType;
+  weight: number;
+  unit: WeightUnit;
+  pulleyMultiplier: 1 | 0.5;
+  reps: number;
+  volume: number;
+  estimatedPr: number;
+};
+
+export type ExerciseHistorySession = {
+  id: string;
+  workoutName: string;
+  startedAt: number;
+  finishedAt: number;
+  bestWeight: number;
+  bestVolume: number;
+  bestPr: number;
+  totalVolume: number;
+  setCount: number;
+  sets: ExerciseHistorySet[];
+};
+
+export type ExerciseHistoryDetail = {
+  exerciseName: string;
+  unit: WeightUnit;
+  stats: {
+    estimatedOneRepMax: number;
+    bestWeight: number;
+    bestVolume: number;
+    bestSetVolume: number;
+    sessions: number;
+    workingSets: number;
+  };
+  sessions: ExerciseHistorySession[];
+};
+
 const dbPromise = SQLite.openDatabaseAsync("keelo.db");
 let initializeWorkoutStoragePromise: Promise<void> | null = null;
 
@@ -464,6 +502,118 @@ export async function loadWorkoutSessionById(sessionId: string) {
       };
     }),
   } satisfies WorkoutSessionDetail;
+}
+
+export async function loadExerciseHistory(
+  exerciseName: string,
+): Promise<ExerciseHistoryDetail> {
+  const db = await dbPromise;
+  const rows = await db.getAllAsync<{
+    session_id: string;
+    workout_name: string;
+    started_at: number;
+    finished_at: number;
+    set_order: number;
+    set_type: SetType;
+    weight_value: number;
+    weight_unit: WeightUnit;
+    pulley_multiplier: number;
+    reps: number;
+    completed: number;
+  }>(
+    `SELECT
+        s.id as session_id,
+        s.name as workout_name,
+        s.started_at,
+        s.finished_at,
+        ss.set_order,
+        ss.set_type,
+        ss.weight_value,
+        ss.weight_unit,
+        ss.pulley_multiplier,
+        ss.reps,
+        ss.completed
+      FROM workout_session_sets ss
+      JOIN workout_session_exercises se ON se.id = ss.session_exercise_id
+      JOIN workout_sessions s ON s.id = se.session_id
+      WHERE se.exercise_name = ?
+      ORDER BY s.started_at DESC, ss.set_order ASC`,
+    exerciseName,
+  );
+
+  const sessionsById = new Map<string, ExerciseHistorySession>();
+  let latestUnit: WeightUnit = "kg";
+
+  for (const row of rows) {
+    if (row.completed !== 1) {
+      continue;
+    }
+
+    latestUnit = row.weight_unit;
+    const effectiveWeight =
+      Number(row.weight_value) * Number(row.pulley_multiplier);
+    const reps = Number(row.reps);
+    const volume = effectiveWeight * reps;
+    const estimatedPr = effectiveWeight * (1 + reps / 30);
+    const set: ExerciseHistorySet = {
+      id: `${row.session_id}-${row.set_order}`,
+      type: row.set_type,
+      weight: effectiveWeight,
+      unit: row.weight_unit,
+      pulleyMultiplier: Number(row.pulley_multiplier) === 0.5 ? 0.5 : 1,
+      reps,
+      volume,
+      estimatedPr,
+    };
+
+    const current = sessionsById.get(row.session_id) ?? {
+      id: row.session_id,
+      workoutName: row.workout_name,
+      startedAt: row.started_at,
+      finishedAt: row.finished_at,
+      bestWeight: 0,
+      bestVolume: 0,
+      bestPr: 0,
+      totalVolume: 0,
+      setCount: 0,
+      sets: [],
+    };
+
+    current.bestWeight = Math.max(current.bestWeight, effectiveWeight);
+    current.bestVolume = Math.max(current.bestVolume, volume);
+    current.bestPr = Math.max(current.bestPr, estimatedPr);
+    if (row.set_type === "normal" || row.set_type === "failure") {
+      current.totalVolume += volume;
+      current.setCount += 1;
+    }
+    current.sets.push(set);
+    sessionsById.set(row.session_id, current);
+  }
+
+  const sessions = Array.from(sessionsById.values()).sort(
+    (a, b) => b.startedAt - a.startedAt,
+  );
+  const allSets = sessions.flatMap((session) => session.sets);
+
+  return {
+    exerciseName,
+    unit: latestUnit,
+    stats: {
+      estimatedOneRepMax: Math.max(0, ...allSets.map((set) => set.estimatedPr)),
+      bestWeight: Math.max(0, ...allSets.map((set) => set.weight)),
+      bestVolume: sessions.reduce(
+        (best, session) => Math.max(best, session.totalVolume),
+        0,
+      ),
+      bestSetVolume: Math.max(0, ...allSets.map((set) => set.volume)),
+      sessions: sessions.length,
+      workingSets: sessions.reduce(
+        (count, session) => count + session.setCount,
+        0,
+      ),
+    },
+    sessions,
+  };
 }
 
 export async function updateWorkoutSessionMeta(

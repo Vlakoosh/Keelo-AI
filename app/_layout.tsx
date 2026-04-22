@@ -46,6 +46,7 @@ function ThemedRootLayout() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="exercises/add" />
+        <Stack.Screen name="exercises/[name]" />
         <Stack.Screen name="routines/create" />
         <Stack.Screen name="workouts/[id]" />
         <Stack.Screen name="+not-found" />
