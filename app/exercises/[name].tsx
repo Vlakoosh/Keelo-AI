@@ -1,7 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import {
+  type LayoutChangeEvent,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 
 import { PageHeader } from "@/components/page-header";
 import {
@@ -13,6 +19,32 @@ import {
 import { useAppTheme } from "@/theme/theme-provider";
 
 const CHART_LIMIT = 8;
+const CHART_HEIGHT = 220;
+const CHART_BOTTOM_PADDING = 34;
+const CHART_TOP_PADDING = 18;
+const CHART_SIDE_PADDING = 28;
+const DOT_SIZE = 16;
+
+type GraphMetricKey = "estimatedPr" | "bestWeight" | "bestSetVolume" | "volume";
+
+type GraphMetric = {
+  key: GraphMetricKey;
+  label: string;
+  recordLabel: string;
+};
+
+type WeeklyPoint = {
+  weekStart: number;
+  label: string;
+  value: number;
+};
+
+const GRAPH_METRICS: GraphMetric[] = [
+  { key: "estimatedPr", label: "1RM", recordLabel: "Estimated 1RM" },
+  { key: "bestWeight", label: "Weight", recordLabel: "Best Weight" },
+  { key: "bestSetVolume", label: "Set Volume", recordLabel: "Best Set Volume" },
+  { key: "volume", label: "Volume", recordLabel: "Best Volume" },
+];
 
 export default function ExerciseHistoryScreen() {
   const router = useRouter();
@@ -21,6 +53,8 @@ export default function ExerciseHistoryScreen() {
   const exerciseName = String(params.name ?? "");
   const [history, setHistory] = useState<ExerciseHistoryDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedMetric, setSelectedMetric] =
+    useState<GraphMetricKey>("estimatedPr");
 
   useEffect(() => {
     let active = true;
@@ -46,9 +80,15 @@ export default function ExerciseHistoryScreen() {
     };
   }, [exerciseName]);
 
-  const chartSessions = useMemo(
-    () => [...(history?.sessions ?? [])].reverse().slice(-CHART_LIMIT),
-    [history?.sessions],
+  const chartPoints = useMemo(
+    () =>
+      aggregateWeeklyPoints(history?.sessions ?? [], selectedMetric).slice(
+        -CHART_LIMIT,
+      ),
+    [history?.sessions, selectedMetric],
+  );
+  const activeMetric = GRAPH_METRICS.find(
+    (metric) => metric.key === selectedMetric,
   );
 
   return (
@@ -90,31 +130,21 @@ export default function ExerciseHistoryScreen() {
                   Progress
                 </Text>
                 <Text className="text-sm" style={{ color: theme.muted }}>
-                  Estimated 1RM
+                  Weekly best
                 </Text>
               </View>
-              <HistoryChart sessions={chartSessions} unit={history.unit} />
+              <HistoryChart
+                points={chartPoints}
+                unit={history.unit}
+                metricLabel={activeMetric?.label ?? "Progress"}
+              />
+              <MetricSelector
+                selectedMetric={selectedMetric}
+                onSelect={setSelectedMetric}
+              />
             </View>
 
-            <View className="flex-row flex-wrap gap-2">
-              <StatPill
-                label="1RM"
-                value={`${formatNumber(history.stats.estimatedOneRepMax)} ${history.unit}`}
-              />
-              <StatPill
-                label="Best Weight"
-                value={`${formatNumber(history.stats.bestWeight)} ${history.unit}`}
-              />
-              <StatPill
-                label="Best Set Volume"
-                value={`${formatNumber(history.stats.bestSetVolume)} ${history.unit}`}
-              />
-              <StatPill
-                label="Best Volume"
-                value={`${formatNumber(history.stats.bestVolume)} ${history.unit}`}
-              />
-              <StatPill label="Sets" value={`${history.stats.workingSets}`} />
-            </View>
+            <RecordsPanel history={history} />
 
             <View className="gap-4">
               <Text
@@ -155,78 +185,240 @@ export default function ExerciseHistoryScreen() {
 }
 
 function HistoryChart({
-  sessions,
+  points,
   unit,
+  metricLabel,
 }: {
-  sessions: ExerciseHistorySession[];
+  points: WeeklyPoint[];
   unit: string;
+  metricLabel: string;
 }) {
   const { theme } = useAppTheme();
-  const maxPr = Math.max(1, ...sessions.map((session) => session.bestPr));
+  const [chartWidth, setChartWidth] = useState(0);
+  const [selectedPoint, setSelectedPoint] = useState<WeeklyPoint | null>(null);
+  const maxValue = Math.max(1, ...points.map((point) => point.value));
+  const minValue = Math.min(...points.map((point) => point.value));
+  const range = Math.max(1, maxValue - minValue);
+  const usableHeight = CHART_HEIGHT - CHART_TOP_PADDING - CHART_BOTTOM_PADDING;
+  const usableWidth = Math.max(0, chartWidth - CHART_SIDE_PADDING * 2);
+  const plottedPoints = points.map((point, index) => {
+    const x =
+      points.length === 1
+        ? CHART_SIDE_PADDING + usableWidth / 2
+        : (usableWidth / (points.length - 1)) * index;
+    const y =
+      CHART_TOP_PADDING +
+      usableHeight -
+      ((point.value - minValue) / range) * usableHeight;
+
+    return {
+      ...point,
+      x: points.length === 1 ? x : x + CHART_SIDE_PADDING,
+      y,
+    };
+  });
+
+  function handleLayout(event: LayoutChangeEvent) {
+    setChartWidth(event.nativeEvent.layout.width);
+  }
 
   return (
-    <View className="h-56">
-      <View className="absolute inset-x-0 top-0 h-px bg-border" />
-      <View className="absolute inset-x-0 top-1/2 h-px bg-border" />
-      <View className="absolute inset-x-0 bottom-8 h-px bg-border" />
-      <View className="h-full flex-row items-end gap-2 pb-8">
-        {sessions.map((session) => {
-          const height = Math.max(12, (session.bestPr / maxPr) * 168);
-          return (
-            <View key={session.id} className="flex-1 items-center gap-2">
-              <Text
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                className="text-center text-xs font-semibold"
-                style={{ color: theme.text }}
-              >
-                {formatNumber(session.bestPr)}
-              </Text>
-              <View
-                className="w-full rounded-t-card"
-                style={{
-                  height,
-                  backgroundColor: theme.secondary,
-                }}
-              />
-              <Text
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                className="text-center text-xs"
-                style={{ color: theme.muted }}
-              >
-                {formatShortDate(session.startedAt)}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-      <Text
-        className="absolute right-0 top-2 text-xs"
-        style={{ color: theme.muted }}
+    <View className="gap-3">
+      <View
+        onLayout={handleLayout}
+        className="relative"
+        style={{ height: CHART_HEIGHT }}
       >
-        {formatNumber(maxPr)} {unit}
-      </Text>
+        <View className="absolute inset-x-0 top-4 h-px bg-border" />
+        <View className="absolute inset-x-0 top-1/2 h-px bg-border" />
+        <View
+          className="absolute inset-x-0 h-px bg-border"
+          style={{ bottom: CHART_BOTTOM_PADDING }}
+        />
+        {chartWidth > 0 && plottedPoints.length > 1
+          ? plottedPoints.slice(0, -1).map((point, index) => {
+              const next = plottedPoints[index + 1];
+              const dx = next.x - point.x;
+              const dy = next.y - point.y;
+              const length = Math.sqrt(dx * dx + dy * dy);
+              const angle = `${Math.atan2(dy, dx)}rad`;
+              const centerX = point.x + dx / 2;
+              const centerY = point.y + dy / 2;
+
+              return (
+                <View
+                  key={`${point.weekStart}-${next.weekStart}`}
+                  className="absolute h-[3px] rounded-full"
+                  style={{
+                    left: centerX - length / 2,
+                    top: centerY - 1.5,
+                    width: length,
+                    backgroundColor: theme.secondary,
+                    transform: [{ rotateZ: angle }],
+                  }}
+                />
+              );
+            })
+          : null}
+        {chartWidth > 0
+          ? plottedPoints.map((point) => (
+              <View key={point.weekStart}>
+                {selectedPoint?.weekStart === point.weekStart ? (
+                  <View
+                    className="absolute rounded-card px-3 py-2"
+                    style={{
+                      left: Math.min(
+                        Math.max(0, point.x - 54),
+                        Math.max(0, chartWidth - 108),
+                      ),
+                      top: Math.max(0, point.y - 52),
+                      backgroundColor: theme.quaternary,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                    }}
+                  >
+                    <Text
+                      className="text-xs font-semibold"
+                      style={{ color: theme.text }}
+                    >
+                      {formatNumber(point.value)} {unit}
+                    </Text>
+                    <Text
+                      className="mt-1 text-xs"
+                      style={{ color: theme.muted }}
+                    >
+                      {metricLabel} - {point.label}
+                    </Text>
+                  </View>
+                ) : null}
+                <Pressable
+                  onPress={() => setSelectedPoint(point)}
+                  onHoverIn={() => setSelectedPoint(point)}
+                  onHoverOut={() => setSelectedPoint(null)}
+                  className="absolute items-center justify-center"
+                  style={{
+                    left: point.x - DOT_SIZE,
+                    top: point.y - DOT_SIZE,
+                    height: DOT_SIZE * 2,
+                    width: DOT_SIZE * 2,
+                  }}
+                >
+                  <View
+                    className="rounded-full"
+                    style={{
+                      height: DOT_SIZE,
+                      width: DOT_SIZE,
+                      borderWidth: 3,
+                      borderColor: theme.secondary,
+                      backgroundColor: theme.background,
+                    }}
+                  />
+                </Pressable>
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  className="absolute w-14 text-center text-xs"
+                  style={{
+                    left: point.x - 28,
+                    top: CHART_HEIGHT - 24,
+                    color: theme.muted,
+                  }}
+                >
+                  {point.label}
+                </Text>
+              </View>
+            ))
+          : null}
+      </View>
     </View>
   );
 }
 
-function StatPill({ label, value }: { label: string; value: string }) {
+function MetricSelector({
+  selectedMetric,
+  onSelect,
+}: {
+  selectedMetric: GraphMetricKey;
+  onSelect: (metric: GraphMetricKey) => void;
+}) {
   const { theme } = useAppTheme();
   return (
-    <View
-      className="rounded-full px-4 py-3"
-      style={{ backgroundColor: theme.tertiary }}
-    >
-      <Text className="text-xs font-medium" style={{ color: theme.muted }}>
-        {label}
+    <View className="flex-row flex-wrap gap-2">
+      {GRAPH_METRICS.map((metric) => {
+        const isActive = selectedMetric === metric.key;
+        return (
+          <Pressable
+            key={metric.key}
+            onPress={() => onSelect(metric.key)}
+            className="rounded-full px-4 py-3"
+            style={{
+              borderWidth: 1,
+              borderColor: isActive ? theme.secondary : theme.border,
+              backgroundColor: isActive ? theme.quaternary : theme.tertiary,
+            }}
+          >
+            <Text
+              className="text-sm font-semibold"
+              style={{ color: isActive ? theme.secondary : theme.text }}
+            >
+              {metric.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function RecordsPanel({ history }: { history: ExerciseHistoryDetail }) {
+  const { theme } = useAppTheme();
+  const records = [
+    {
+      label: "Estimated 1RM",
+      value: `${formatNumber(history.stats.estimatedOneRepMax)} ${history.unit}`,
+    },
+    {
+      label: "Best Weight",
+      value: `${formatNumber(history.stats.bestWeight)} ${history.unit}`,
+    },
+    {
+      label: "Best Set Volume",
+      value: `${formatNumber(history.stats.bestSetVolume)} ${history.unit}`,
+    },
+    {
+      label: "Best Volume",
+      value: `${formatNumber(history.stats.bestVolume)} ${history.unit}`,
+    },
+    {
+      label: "Working Sets",
+      value: `${history.stats.workingSets}`,
+    },
+  ];
+
+  return (
+    <View className="gap-3">
+      <Text className="text-lg font-semibold" style={{ color: theme.text }}>
+        Records
       </Text>
-      <Text
-        className="mt-1 text-base font-semibold"
-        style={{ color: theme.text }}
-      >
-        {value}
-      </Text>
+      <View className="flex-row flex-wrap gap-3">
+        {records.map((record) => (
+          <View
+            key={record.label}
+            className="min-w-[46%] flex-1 rounded-card px-4 py-4"
+            style={{ backgroundColor: theme.tertiary }}
+          >
+            <Text className="text-sm" style={{ color: theme.muted }}>
+              {record.label}
+            </Text>
+            <Text
+              className="mt-2 text-xl font-semibold"
+              style={{ color: theme.text }}
+            >
+              {record.value}
+            </Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -284,6 +476,53 @@ function setLabel(
   if (type === "drop") return "D";
   if (type === "failure") return "F";
   return `${index + 1}`;
+}
+
+function aggregateWeeklyPoints(
+  sessions: ExerciseHistorySession[],
+  metric: GraphMetricKey,
+) {
+  const pointsByWeek = new Map<number, WeeklyPoint>();
+  const sortedSessions = [...sessions].sort(
+    (a, b) => a.startedAt - b.startedAt,
+  );
+
+  for (const session of sortedSessions) {
+    const weekStart = getWeekStart(session.startedAt);
+    const value = getMetricValue(session, metric);
+    const current = pointsByWeek.get(weekStart);
+
+    if (!current || value > current.value) {
+      pointsByWeek.set(weekStart, {
+        weekStart,
+        label: formatShortDate(weekStart),
+        value,
+      });
+    }
+  }
+
+  return Array.from(pointsByWeek.values()).sort(
+    (a, b) => a.weekStart - b.weekStart,
+  );
+}
+
+function getMetricValue(
+  session: ExerciseHistorySession,
+  metric: GraphMetricKey,
+) {
+  if (metric === "bestWeight") return session.bestWeight;
+  if (metric === "bestSetVolume") return session.bestVolume;
+  if (metric === "volume") return session.totalVolume;
+  return session.bestPr;
+}
+
+function getWeekStart(value: number) {
+  const date = new Date(value);
+  const day = date.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
 }
 
 function formatNumber(value: number) {

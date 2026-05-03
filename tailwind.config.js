@@ -5,29 +5,29 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: "#111111",
-        secondary: "#FF772C",
-        tertiary: "#181818",
-        quaternary: "#1C1E1F",
-        background: "#111111",
-        surface: "#141414",
-        "surface-2": "#181818",
-        border: "#262626",
-        text: "#FAFAFA",
+        primary: "#181A1B",
+        secondary: "#9BA8FF",
+        tertiary: "#202326",
+        quaternary: "#2A3034",
+        background: "#181A1B",
+        surface: "#202326",
+        "surface-2": "#262A2D",
+        border: "#343A3F",
+        text: "#F5F5F5",
         "text-secondary": "#242529",
-        muted: "#A3A3A3",
+        muted: "#B8B8B8",
         protein: "#7ED957",
         carbs: "#60A5FA",
         fats: "#F59E0B",
-        accent: "#FF772C"
+        accent: "#9BA8FF",
       },
       borderRadius: {
-        card: "10px"
+        card: "10px",
       },
       spacing: {
-        18: "4.5rem"
-      }
-    }
+        18: "4.5rem",
+      },
+    },
   },
-  plugins: []
+  plugins: [],
 };
