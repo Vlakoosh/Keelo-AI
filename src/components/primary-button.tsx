@@ -5,7 +5,7 @@ import { useAppTheme } from "@/theme/theme-provider";
 type PrimaryButtonProps = {
   label: string;
   onPress?: () => void;
-  variant?: "primary" | "secondary" | "danger";
+  variant?: "primary" | "secondary" | "danger" | "ghost";
   fullWidth?: boolean;
 };
 
@@ -20,40 +20,45 @@ export function PrimaryButton({
   const style =
     variant === "primary"
       ? {
-          backgroundColor: theme.secondary,
+          backgroundColor: theme.primaryAccent,
           borderWidth: 0
         }
       : variant === "danger"
         ? {
-            backgroundColor: "rgba(239,68,68,0.1)",
-            borderWidth: 1,
-            borderColor: "#EF4444"
+            backgroundColor: theme.destructiveSoft,
+            borderWidth: 0
           }
-        : {
-            backgroundColor: theme.tertiary,
-            borderWidth: 1,
-            borderColor: theme.tertiary
-          };
+        : variant === "ghost"
+          ? {
+              backgroundColor: theme.transparent,
+              borderWidth: 0
+            }
+          : {
+              backgroundColor: theme.cardMuted,
+              borderWidth: 0
+            };
 
   const textStyle =
     variant === "primary"
       ? {
-          color: theme.mode === "light" ? theme.text : theme.textSecondary
+          color: theme.textOnAccent
         }
       : variant === "danger"
         ? {
-            color: "#FCA5A5"
+            color: theme.destructive
           }
+        : variant === "ghost"
+          ? {
+              color: theme.primaryAccent
+            }
         : {
-            color: theme.secondary,
-            textTransform: "uppercase" as const,
-            letterSpacing: 1
+            color: theme.text
           };
 
   return (
     <Pressable
       onPress={onPress}
-      className={`${fullWidth ? "w-full" : ""} h-12 items-center justify-center rounded-card px-5`}
+      className={`${fullWidth ? "w-full" : ""} min-h-[52px] items-center justify-center rounded-card px-5`}
       style={style}
     >
       <Text className="text-base font-semibold" style={textStyle}>{label}</Text>

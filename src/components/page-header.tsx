@@ -18,7 +18,7 @@ export function PageHeader({ title, subtitle, onBack, rightSlot }: PageHeaderPro
   return (
     <View
       className="px-5 pb-4"
-      style={{ paddingTop: insets.top + 12, borderBottomWidth: 1, borderBottomColor: theme.border, backgroundColor: theme.background }}
+      style={{ paddingTop: insets.top + 12, backgroundColor: theme.canvas }}
     >
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1 flex-row items-center gap-3">
@@ -31,8 +31,8 @@ export function PageHeader({ title, subtitle, onBack, rightSlot }: PageHeaderPro
             </Pressable>
           ) : null}
           <View className="flex-1">
-            <Text className="text-xl font-semibold" style={{ color: theme.text }}>{title}</Text>
-            {subtitle ? <Text className="mt-1 text-sm" style={{ color: theme.muted }}>{subtitle}</Text> : null}
+            <Text className="text-2xl font-semibold" style={{ color: theme.text }}>{title}</Text>
+            {subtitle ? <Text className="mt-1 text-sm" style={{ color: theme.textMuted }}>{subtitle}</Text> : null}
           </View>
         </View>
         {rightSlot ? <View className="flex-row items-center gap-2">{rightSlot}</View> : null}

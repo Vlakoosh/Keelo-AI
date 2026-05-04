@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 import { PageHeader } from "@/components/page-header";
+import { EmptyState, Tile } from "@/components/ui";
 import {
   type ExerciseHistoryDetail,
   type ExerciseHistorySession,
@@ -92,7 +93,7 @@ export default function ExerciseHistoryScreen() {
   );
 
   return (
-    <View className="flex-1" style={{ backgroundColor: theme.background }}>
+    <View className="flex-1" style={{ backgroundColor: theme.canvas }}>
       <PageHeader title="Exercise" onBack={() => router.back()} />
       <ScrollView
         className="flex-1"
@@ -101,11 +102,11 @@ export default function ExerciseHistoryScreen() {
         <View className="gap-2">
           <Text
             className="text-3xl font-semibold"
-            style={{ color: theme.secondary }}
+            style={{ color: theme.primaryAccent }}
           >
             {exerciseName || "Exercise"}
           </Text>
-          <Text className="text-sm" style={{ color: theme.muted }}>
+          <Text className="text-sm" style={{ color: theme.textMuted }}>
             {history
               ? `${history.stats.sessions} sessions logged`
               : "Loading exercise history"}
@@ -113,15 +114,12 @@ export default function ExerciseHistoryScreen() {
         </View>
 
         {isLoading ? (
-          <Text className="text-sm" style={{ color: theme.muted }}>
+          <Text className="text-sm" style={{ color: theme.textMuted }}>
             Loading history...
           </Text>
         ) : history && history.sessions.length > 0 ? (
           <>
-            <View
-              className="gap-4 border-y py-5"
-              style={{ borderColor: theme.tertiary }}
-            >
+            <Tile className="gap-4 p-5">
               <View className="flex-row items-center justify-between">
                 <Text
                   className="text-lg font-semibold"
@@ -129,7 +127,7 @@ export default function ExerciseHistoryScreen() {
                 >
                   Progress
                 </Text>
-                <Text className="text-sm" style={{ color: theme.muted }}>
+                <Text className="text-sm" style={{ color: theme.textMuted }}>
                   Weekly best
                 </Text>
               </View>
@@ -142,7 +140,7 @@ export default function ExerciseHistoryScreen() {
                 selectedMetric={selectedMetric}
                 onSelect={setSelectedMetric}
               />
-            </View>
+            </Tile>
 
             <RecordsPanel history={history} />
 
@@ -159,25 +157,11 @@ export default function ExerciseHistoryScreen() {
             </View>
           </>
         ) : (
-          <View
-            className="items-center justify-center border-y py-12"
-            style={{ borderColor: theme.tertiary }}
-          >
-            <Ionicons name="barbell-outline" size={28} color={theme.muted} />
-            <Text
-              className="mt-4 text-center text-lg font-semibold"
-              style={{ color: theme.text }}
-            >
-              No logged sets yet
-            </Text>
-            <Text
-              className="mt-2 text-center text-sm leading-6"
-              style={{ color: theme.muted }}
-            >
-              Completed sets for this exercise will appear here after you save a
-              workout.
-            </Text>
-          </View>
+          <EmptyState
+            title="No logged sets yet"
+            description="Completed sets for this exercise will appear here after you save a workout."
+            icon="barbell-outline"
+          />
         )}
       </ScrollView>
     </View>
@@ -229,11 +213,11 @@ function HistoryChart({
         className="relative"
         style={{ height: CHART_HEIGHT }}
       >
-        <View className="absolute inset-x-0 top-4 h-px bg-border" />
-        <View className="absolute inset-x-0 top-1/2 h-px bg-border" />
+        <View className="absolute inset-x-0 top-4 h-px" style={{ backgroundColor: theme.hairline }} />
+        <View className="absolute inset-x-0 top-1/2 h-px" style={{ backgroundColor: theme.hairline }} />
         <View
-          className="absolute inset-x-0 h-px bg-border"
-          style={{ bottom: CHART_BOTTOM_PADDING }}
+          className="absolute inset-x-0 h-px"
+          style={{ bottom: CHART_BOTTOM_PADDING, backgroundColor: theme.hairline }}
         />
         {chartWidth > 0 && plottedPoints.length > 1
           ? plottedPoints.slice(0, -1).map((point, index) => {
@@ -253,7 +237,7 @@ function HistoryChart({
                     left: centerX - length / 2,
                     top: centerY - 1.5,
                     width: length,
-                    backgroundColor: theme.secondary,
+                    backgroundColor: theme.primaryAccent,
                     transform: [{ rotateZ: angle }],
                   }}
                 />
@@ -272,9 +256,7 @@ function HistoryChart({
                         Math.max(0, chartWidth - 108),
                       ),
                       top: Math.max(0, point.y - 52),
-                      backgroundColor: theme.quaternary,
-                      borderWidth: 1,
-                      borderColor: theme.border,
+                      backgroundColor: theme.card,
                     }}
                   >
                     <Text
@@ -285,7 +267,7 @@ function HistoryChart({
                     </Text>
                     <Text
                       className="mt-1 text-xs"
-                      style={{ color: theme.muted }}
+                      style={{ color: theme.textMuted }}
                     >
                       {metricLabel} - {point.label}
                     </Text>
@@ -309,8 +291,8 @@ function HistoryChart({
                       height: DOT_SIZE,
                       width: DOT_SIZE,
                       borderWidth: 3,
-                      borderColor: theme.secondary,
-                      backgroundColor: theme.background,
+                      borderColor: theme.primaryAccent,
+                      backgroundColor: theme.card,
                     }}
                   />
                 </Pressable>
@@ -321,7 +303,7 @@ function HistoryChart({
                   style={{
                     left: point.x - 28,
                     top: CHART_HEIGHT - 24,
-                    color: theme.muted,
+                    color: theme.textMuted,
                   }}
                 >
                   {point.label}
@@ -352,14 +334,12 @@ function MetricSelector({
             onPress={() => onSelect(metric.key)}
             className="rounded-full px-4 py-3"
             style={{
-              borderWidth: 1,
-              borderColor: isActive ? theme.secondary : theme.border,
-              backgroundColor: isActive ? theme.quaternary : theme.tertiary,
+              backgroundColor: isActive ? theme.primaryAccent : theme.cardMuted,
             }}
           >
             <Text
               className="text-sm font-semibold"
-              style={{ color: isActive ? theme.secondary : theme.text }}
+              style={{ color: isActive ? theme.textOnAccent : theme.text }}
             >
               {metric.label}
             </Text>
@@ -402,12 +382,11 @@ function RecordsPanel({ history }: { history: ExerciseHistoryDetail }) {
       </Text>
       <View className="flex-row flex-wrap gap-3">
         {records.map((record) => (
-          <View
+          <Tile
             key={record.label}
             className="min-w-[46%] flex-1 rounded-card px-4 py-4"
-            style={{ backgroundColor: theme.tertiary }}
           >
-            <Text className="text-sm" style={{ color: theme.muted }}>
+            <Text className="text-sm" style={{ color: theme.textMuted }}>
               {record.label}
             </Text>
             <Text
@@ -416,7 +395,7 @@ function RecordsPanel({ history }: { history: ExerciseHistoryDetail }) {
             >
               {record.value}
             </Text>
-          </View>
+          </Tile>
         ))}
       </View>
     </View>
@@ -426,10 +405,7 @@ function RecordsPanel({ history }: { history: ExerciseHistoryDetail }) {
 function HistorySessionRow({ session }: { session: ExerciseHistorySession }) {
   const { theme } = useAppTheme();
   return (
-    <View
-      className="gap-3 border-b pb-4"
-      style={{ borderBottomColor: theme.tertiary }}
-    >
+    <Tile className="gap-3 p-4">
       <View className="flex-row items-start justify-between gap-4">
         <View className="flex-1">
           <Text
@@ -439,7 +415,7 @@ function HistorySessionRow({ session }: { session: ExerciseHistorySession }) {
           >
             {session.workoutName}
           </Text>
-          <Text className="mt-1 text-sm" style={{ color: theme.muted }}>
+          <Text className="mt-1 text-sm" style={{ color: theme.textMuted }}>
             {formatLongDate(session.startedAt)}
           </Text>
         </View>
@@ -452,7 +428,7 @@ function HistorySessionRow({ session }: { session: ExerciseHistorySession }) {
           <View
             key={set.id}
             className="rounded-full px-3 py-2"
-            style={{ backgroundColor: theme.tertiary }}
+            style={{ backgroundColor: theme.cardMuted }}
           >
             <Text
               className="text-xs font-semibold"
@@ -464,7 +440,7 @@ function HistorySessionRow({ session }: { session: ExerciseHistorySession }) {
           </View>
         ))}
       </View>
-    </View>
+    </Tile>
   );
 }
 

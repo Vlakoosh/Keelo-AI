@@ -10,6 +10,8 @@ import {
 } from "react-native";
 
 import { PageHeader } from "@/components/page-header";
+import { PrimaryButton } from "@/components/primary-button";
+import { StatTile, Tile } from "@/components/ui";
 import {
   type WorkoutSessionDetail,
   deleteWorkoutSession,
@@ -83,7 +85,7 @@ export default function WorkoutDetailScreen() {
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: theme.background }}>
+    <View className="flex-1" style={{ backgroundColor: theme.canvas }}>
       <PageHeader
         title="Workout"
         onBack={() => router.back()}
@@ -96,8 +98,8 @@ export default function WorkoutDetailScreen() {
               className="px-1 py-2"
             >
               <Text
-                className="text-base font-semibold uppercase tracking-[1px]"
-                style={{ color: theme.secondary }}
+                className="text-base font-semibold"
+                style={{ color: theme.primaryAccent }}
               >
                 Save
               </Text>
@@ -118,17 +120,17 @@ export default function WorkoutDetailScreen() {
               )
             }
             className="text-3xl font-semibold"
-            style={{ color: theme.secondary }}
+            style={{ color: theme.primaryAccent }}
           />
         ) : (
           <Text
             className="text-3xl font-semibold"
-            style={{ color: theme.secondary }}
+            style={{ color: theme.primaryAccent }}
           >
             {activeWorkout.name}
           </Text>
         )}
-        <Text className="text-sm" style={{ color: theme.muted }}>
+        <Text className="text-sm" style={{ color: theme.textMuted }}>
           {formatDateTime(activeWorkout.startedAt)}
         </Text>
         {isEdit ? (
@@ -141,7 +143,7 @@ export default function WorkoutDetailScreen() {
               )
             }
             placeholder="Add notes"
-            placeholderTextColor={theme.muted}
+            placeholderTextColor={theme.textMuted}
             className="min-h-[64px] text-base"
             style={{ color: theme.text }}
           />
@@ -150,27 +152,16 @@ export default function WorkoutDetailScreen() {
             {activeWorkout.notes}
           </Text>
         ) : null}
-        <View
-          className="flex-row border-y py-4"
-          style={{ borderColor: theme.tertiary }}
-        >
-          <Metric
-            value={fmt(durationSeconds)}
-            label="Duration"
-            dividerColor={theme.tertiary}
-          />
-          <Metric
-            value={`${setCount}`}
-            label="Sets"
-            dividerColor={theme.tertiary}
-          />
-          <Metric value={`${volume.toFixed(0)} kg`} label="Volume" />
+        <View className="flex-row gap-3">
+          <StatTile value={fmt(durationSeconds)} label="Duration" variant="accent" />
+          <StatTile value={`${setCount}`} label="Sets" />
+          <StatTile value={`${volume.toFixed(0)} kg`} label="Volume" />
         </View>
-        <Text className="text-sm font-medium" style={{ color: theme.muted }}>
+        <Text className="text-sm font-medium" style={{ color: theme.textMuted }}>
           Exercises
         </Text>
         {activeWorkout.exercises.map((exercise) => (
-          <View key={exercise.id} className="gap-3 py-2">
+          <Tile key={exercise.id} className="gap-3 p-4">
             <Pressable
               onPress={() =>
                 router.push({
@@ -192,7 +183,7 @@ export default function WorkoutDetailScreen() {
                 <View key={set.id} className="flex-row items-center gap-3">
                   <View
                     className="rounded-card px-3 py-2"
-                    style={{ backgroundColor: theme.tertiary }}
+                    style={{ backgroundColor: theme.cardMuted }}
                   >
                     <Text
                       className="text-sm font-semibold"
@@ -207,7 +198,7 @@ export default function WorkoutDetailScreen() {
                             : setNumber(exercise.sets, set.id)}
                     </Text>
                   </View>
-                  <Text className="text-sm" style={{ color: theme.text }}>
+                  <Text className="text-sm" style={{ color: theme.textSecondary }}>
                     {trimValue(set.enteredWeight)} {set.unit} x {set.reps} ={" "}
                     {(
                       Number(set.enteredWeight || 0) *
@@ -224,42 +215,31 @@ export default function WorkoutDetailScreen() {
                 <View
                   key={chip}
                   className="rounded-full px-3 py-2"
-                  style={{ backgroundColor: theme.tertiary }}
+                  style={{ backgroundColor: theme.warningSoft }}
                 >
                   <Text
                     className="text-xs font-semibold"
-                    style={{ color: theme.secondary }}
+                    style={{ color: theme.warning }}
                   >
                     {chip}
                   </Text>
                 </View>
               ))}
             </View>
-          </View>
+          </Tile>
         ))}
         {!isEdit ? (
           <View className="gap-3 pt-2">
-            <Pressable
+            <PrimaryButton
+              label="Edit Workout"
+              variant="secondary"
               onPress={() =>
                 router.push({
                   pathname: "/workouts/[id]",
                   params: { id: activeWorkout.id, mode: "edit" },
                 })
               }
-              className="rounded-card px-4 py-4"
-              style={{
-                borderWidth: 1,
-                borderColor: theme.quaternary,
-                backgroundColor: theme.tertiary,
-              }}
-            >
-              <Text
-                className="text-base font-semibold"
-                style={{ color: theme.text }}
-              >
-                Edit Workout
-              </Text>
-            </Pressable>
+            />
             <Pressable
               onPress={() => {
                 void deleteWorkoutSession(activeWorkout.id)
@@ -274,14 +254,12 @@ export default function WorkoutDetailScreen() {
               }}
               className="rounded-card px-4 py-4"
               style={{
-                borderWidth: 1,
-                borderColor: "#EF4444",
-                backgroundColor: "rgba(239,68,68,0.1)",
+                backgroundColor: theme.destructiveSoft,
               }}
             >
               <Text
                 className="text-base font-semibold"
-                style={{ color: "#FCA5A5" }}
+                style={{ color: theme.destructive }}
               >
                 Delete Workout
               </Text>

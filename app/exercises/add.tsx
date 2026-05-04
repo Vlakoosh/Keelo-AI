@@ -11,6 +11,7 @@ import {
 } from "react-native";
 
 import { BottomPopup } from "@/components/bottom-popup";
+import { EmptyState, Tile } from "@/components/ui";
 import { PageHeader } from "@/components/page-header";
 import { PrimaryButton } from "@/components/primary-button";
 import {
@@ -217,7 +218,7 @@ export default function AddExerciseScreen() {
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: theme.background }}>
+    <View className="flex-1" style={{ backgroundColor: theme.canvas }}>
       <PageHeader
         title="Add Exercise"
         onBack={() => router.back()}
@@ -230,7 +231,7 @@ export default function AddExerciseScreen() {
           >
             <Text
               className="text-base font-semibold"
-              style={{ color: theme.text }}
+              style={{ color: theme.primaryAccent }}
             >
               Create
             </Text>
@@ -239,15 +240,15 @@ export default function AddExerciseScreen() {
       />
       <View className="px-5 pt-5">
         <View
-          className="flex-row items-center gap-3 pb-3"
-          style={{ borderBottomWidth: 1, borderBottomColor: theme.border }}
+          className="flex-row items-center gap-3 rounded-card px-4 py-3"
+          style={{ backgroundColor: theme.card }}
         >
-          <Ionicons name="search-outline" size={18} color={theme.muted} />
+          <Ionicons name="search-outline" size={18} color={theme.iconMuted} />
           <TextInput
             value={search}
             onChangeText={setSearch}
             placeholder="Search exercises"
-            placeholderTextColor={theme.muted}
+            placeholderTextColor={theme.textMuted}
             className="flex-1 py-0 text-base"
             style={{ color: theme.text }}
           />
@@ -273,25 +274,25 @@ export default function AddExerciseScreen() {
           {showRecents ? "Recent Exercises" : "Results"}
         </Text>
         {isLoading ? (
-          <Text className="text-sm" style={{ color: theme.muted }}>
+          <Text className="text-sm" style={{ color: theme.textMuted }}>
             Loading exercises...
           </Text>
         ) : visibleExercises.length === 0 ? (
-          <Text className="text-sm leading-6" style={{ color: theme.muted }}>
-            {showRecents
-              ? "Your manually added exercises will show up here."
-              : "No exercises match that search yet."}
-          </Text>
+          <EmptyState
+            title={showRecents ? "No recent exercises" : "No matching exercises"}
+            description={
+              showRecents
+                ? "Your manually added exercises will show up here."
+                : "Try a different search or filter combination."
+            }
+            icon="barbell-outline"
+          />
         ) : (
-          <View className="gap-1">
+          <View className="gap-3">
             {visibleExercises.map((exercise) => (
-              <View
+              <Tile
                 key={exercise.id}
-                className="flex-row items-center gap-4 py-4"
-                style={{
-                  borderBottomWidth: 1,
-                  borderBottomColor: theme.border,
-                }}
+                className="flex-row items-center gap-4 p-4"
               >
                 <Pressable
                   onPress={() => {
@@ -301,7 +302,7 @@ export default function AddExerciseScreen() {
                 >
                   <View
                     className="h-12 w-12 items-center justify-center rounded-full"
-                    style={{ borderWidth: 1, borderColor: theme.border }}
+                    style={{ backgroundColor: theme.cardMuted }}
                   >
                     <Ionicons
                       name="barbell-outline"
@@ -318,21 +319,21 @@ export default function AddExerciseScreen() {
                     </Text>
                     <Text
                       className="mt-1 text-sm"
-                      style={{ color: theme.muted }}
+                      style={{ color: theme.textMuted }}
                     >
                       {exercise.primaryMuscles.join(", ")}
                     </Text>
                     {exercise.secondaryMuscles.length > 0 ? (
                       <Text
                         className="mt-1 text-xs"
-                        style={{ color: theme.muted }}
+                        style={{ color: theme.textMuted }}
                       >
                         Secondary: {exercise.secondaryMuscles.join(", ")}
                       </Text>
                     ) : null}
                     <Text
                       className="mt-1 text-xs"
-                      style={{ color: theme.muted }}
+                      style={{ color: theme.textMuted }}
                     >
                       {exercise.metadata.global ? "Built in" : "Custom"}
                     </Text>
@@ -348,7 +349,7 @@ export default function AddExerciseScreen() {
                     color={theme.text}
                   />
                 </Pressable>
-              </View>
+              </Tile>
             ))}
           </View>
         )}
@@ -418,14 +419,14 @@ export default function AddExerciseScreen() {
                 Exercise name
               </Text>
               <View
-                className="rounded-card border px-4 py-3"
-                style={{ borderColor: theme.border }}
+                className="rounded-card px-4 py-3"
+                style={{ backgroundColor: theme.input }}
               >
                 <TextInput
                   value={createName}
                   onChangeText={setCreateName}
                   placeholder="e.g. Cable Crunch"
-                  placeholderTextColor={theme.muted}
+                  placeholderTextColor={theme.textMuted}
                   className="py-0 text-base"
                   style={{ color: theme.text }}
                 />
@@ -598,16 +599,15 @@ function OptionGroup({
             <Pressable
               key={option}
               onPress={() => onToggle(option)}
-              className="rounded-card border px-4 py-3"
+              className="rounded-card px-4 py-3"
               style={{
-                borderColor: active ? theme.secondary : theme.border,
-                backgroundColor: active ? theme.surface : theme.background,
+                backgroundColor: active ? theme.primaryAccent : theme.cardMuted,
                 minWidth: singleSelect ? "48%" : undefined,
               }}
             >
               <Text
                 className="text-sm font-semibold"
-                style={{ color: theme.text }}
+                style={{ color: active ? theme.textOnAccent : theme.text }}
               >
                 {option}
               </Text>
@@ -632,13 +632,12 @@ function FilterButton({
   return (
     <Pressable
       onPress={onPress}
-      className="rounded-card border px-4 py-3"
+      className="rounded-card px-4 py-3"
       style={{
-        borderColor: active ? theme.secondary : theme.border,
-        backgroundColor: theme.mode === "light" ? theme.surface : "transparent",
+        backgroundColor: active ? theme.primaryAccent : theme.card,
       }}
     >
-      <Text className="text-sm font-semibold" style={{ color: theme.text }}>
+      <Text className="text-sm font-semibold" style={{ color: active ? theme.textOnAccent : theme.text }}>
         {label}
       </Text>
     </Pressable>
@@ -658,13 +657,12 @@ function FilterOption({
   return (
     <Pressable
       onPress={onPress}
-      className="rounded-card border px-4 py-4"
+      className="rounded-card px-4 py-4"
       style={{
-        borderColor: active ? theme.secondary : theme.border,
-        backgroundColor: active ? theme.surface : theme.background,
+        backgroundColor: active ? theme.primaryAccent : theme.cardMuted,
       }}
     >
-      <Text className="text-sm font-semibold" style={{ color: theme.text }}>
+      <Text className="text-sm font-semibold" style={{ color: active ? theme.textOnAccent : theme.text }}>
         {label}
       </Text>
     </Pressable>

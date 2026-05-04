@@ -15,6 +15,7 @@ import {
 import { BottomPopup } from "@/components/bottom-popup";
 import { PageHeader } from "@/components/page-header";
 import { PrimaryButton } from "@/components/primary-button";
+import { Tile } from "@/components/ui";
 import {
   consumePendingExerciseSelection,
   setPendingExerciseAddMode,
@@ -158,7 +159,7 @@ export default function CreateRoutineScreen() {
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: theme.background }}>
+    <View className="flex-1" style={{ backgroundColor: theme.canvas }}>
       <PageHeader
         title={params.routineId ? "Edit Routine" : "Create Routine"}
         onBack={() => router.back()}
@@ -170,8 +171,8 @@ export default function CreateRoutineScreen() {
             className="px-1 py-2"
           >
             <Text
-              className="text-base font-semibold uppercase tracking-[1px]"
-              style={{ color: theme.secondary }}
+              className="text-base font-semibold"
+              style={{ color: theme.primaryAccent }}
             >
               Save
             </Text>
@@ -190,7 +191,7 @@ export default function CreateRoutineScreen() {
               setRoutine((current) => ({ ...current, name: text }))
             }
             placeholder="Routine Name"
-            placeholderTextColor="#A3A3A3"
+            placeholderTextColor={theme.textMuted}
             className="py-0 text-3xl font-semibold"
             style={{ color: theme.text }}
           />
@@ -201,7 +202,7 @@ export default function CreateRoutineScreen() {
               setRoutine((current) => ({ ...current, notes: text }))
             }
             placeholder="Add notes or description"
-            placeholderTextColor="#A3A3A3"
+            placeholderTextColor={theme.textMuted}
             textAlignVertical="top"
             className="min-h-[56px] px-0 py-2 text-base"
             style={{ color: theme.text }}
@@ -273,10 +274,11 @@ function RoutineExerciseCard({
   openSheet: (sheet: Sheet) => void;
 }) {
   const router = useRouter();
+  const { theme } = useAppTheme();
   const displayUnit = exercise.sets[0]?.unit ?? "kg";
 
   return (
-    <View className="gap-4 border-b border-tertiary py-5">
+    <Tile className="gap-4 p-4">
       <View className="flex-row items-center justify-between gap-3">
         <Pressable
           onPress={() =>
@@ -287,7 +289,7 @@ function RoutineExerciseCard({
           }
           className="flex-1 py-1"
         >
-          <Text className="text-xl font-semibold text-text">
+          <Text className="text-xl font-semibold" style={{ color: theme.text }}>
             {exercise.name}
           </Text>
         </Pressable>
@@ -295,15 +297,15 @@ function RoutineExerciseCard({
           onPress={() => openSheet({ type: "exercise", id: exercise.id })}
           className="h-10 w-10 items-center justify-center"
         >
-          <Ionicons name="ellipsis-horizontal" size={18} color="#FAFAFA" />
+          <Ionicons name="ellipsis-horizontal" size={18} color={theme.icon} />
         </Pressable>
       </View>
       <Pressable
         onPress={() => openSheet({ type: "rest", exerciseId: exercise.id })}
         className="flex-row items-center justify-between"
       >
-        <Text className="text-sm font-medium text-muted">Rest Timer</Text>
-        <Text className="text-sm text-muted">
+        <Text className="text-sm font-medium" style={{ color: theme.primaryAccent }}>Rest Timer</Text>
+        <Text className="text-sm" style={{ color: theme.primaryAccent }}>
           {exercise.restTimerSeconds === 0
             ? "OFF"
             : `${exercise.restTimerSeconds}s`}
@@ -319,7 +321,7 @@ function RoutineExerciseCard({
             className="ml-2 flex-1 flex-row items-center justify-center gap-1"
           >
             <Hdr label={displayUnit} className="text-center" />
-            <Ionicons name="swap-horizontal" size={12} color="#FF772C" />
+            <Ionicons name="swap-horizontal" size={12} color={theme.secondaryAccent} />
           </Pressable>
           <Hdr label="Reps" className="ml-2 flex-1 text-center" />
         </View>
@@ -334,11 +336,12 @@ function RoutineExerciseCard({
                     setId: set.id,
                   })
                 }
-                className="h-12 w-14 items-center justify-center rounded-card bg-tertiary"
+                className="h-12 w-14 items-center justify-center rounded-card"
+                style={{ backgroundColor: theme.cardMuted }}
               >
                 <SetIndicator set={set} sets={exercise.sets} />
               </Pressable>
-              <View className="ml-2 h-12 flex-1 justify-center rounded-card border border-quaternary bg-primary px-3">
+              <View className="ml-2 h-12 flex-1 justify-center rounded-card px-3" style={{ backgroundColor: theme.input }}>
                 <TextInput
                   value={set.enteredWeight}
                   keyboardType="decimal-pad"
@@ -348,12 +351,13 @@ function RoutineExerciseCard({
                       enteredWeight: text,
                     }))
                   }
-                  className="py-0 text-center text-base font-semibold text-text"
+                  className="py-0 text-center text-base font-semibold"
+                  style={{ color: theme.text }}
                   placeholder={set.weightPlaceholder || "0"}
-                  placeholderTextColor="#737373"
+                  placeholderTextColor={theme.textMuted}
                 />
               </View>
-              <View className="ml-2 h-12 flex-1 justify-center rounded-card border border-quaternary bg-primary px-3">
+              <View className="ml-2 h-12 flex-1 justify-center rounded-card px-3" style={{ backgroundColor: theme.input }}>
                 <TextInput
                   value={set.reps}
                   keyboardType="numeric"
@@ -363,9 +367,10 @@ function RoutineExerciseCard({
                       reps: text,
                     }))
                   }
-                  className="py-0 text-center text-base font-semibold text-text"
+                  className="py-0 text-center text-base font-semibold"
+                  style={{ color: theme.text }}
                   placeholder={set.repsPlaceholder || "0"}
-                  placeholderTextColor="#737373"
+                  placeholderTextColor={theme.textMuted}
                 />
               </View>
             </View>
@@ -373,7 +378,7 @@ function RoutineExerciseCard({
         </View>
       </View>
       <PrimaryButton label="Add set" variant="secondary" onPress={addSet} />
-    </View>
+    </Tile>
   );
 }
 
@@ -522,6 +527,7 @@ function RoutineWeightSheet({
   setRoutine: React.Dispatch<React.SetStateAction<WorkoutSession>>;
   setSheet: (sheet: Sheet) => void;
 }) {
+  const { theme } = useAppTheme();
   const exercise = routine.exercises.find(
     (item) => item.id === sheet.exerciseId,
   );
@@ -537,19 +543,21 @@ function RoutineWeightSheet({
           <Pressable
             key={value}
             onPress={() => setUnit(value)}
-            className={`flex-1 rounded-card border px-4 py-3 ${unit === value ? "border-accent bg-accent" : "border-white bg-background"}`}
+            className="flex-1 rounded-card px-4 py-3"
+            style={{ backgroundColor: unit === value ? theme.primaryAccent : theme.cardMuted }}
           >
             <Text
-              className={`text-center text-sm font-semibold ${unit === value ? "text-background" : "text-text"}`}
+              className="text-center text-sm font-semibold"
+              style={{ color: unit === value ? theme.textOnAccent : theme.text }}
             >
               {value.toUpperCase()}
             </Text>
           </Pressable>
         ))}
       </View>
-      <View className="gap-3 rounded-card border border-border bg-background p-4">
+      <Tile variant="muted" className="gap-3 p-4">
         <View className="flex-row items-center justify-between">
-          <Text className="text-base font-semibold text-text">
+          <Text className="text-base font-semibold" style={{ color: theme.text }}>
             Use 1x machine ratio
           </Text>
           <Switch
@@ -557,7 +565,7 @@ function RoutineWeightSheet({
             onValueChange={(next) => setRatio(next ? 1 : 0.5)}
           />
         </View>
-      </View>
+      </Tile>
       <PrimaryButton
         label="Apply preferences"
         onPress={() => {
@@ -655,30 +663,32 @@ function SetIndicator({
   set: WorkoutExercise["sets"][number];
   sets: WorkoutExercise["sets"];
 }) {
+  const { theme } = useAppTheme();
   if (set.type === "failure")
     return (
-      <Text className="text-left text-base font-semibold text-red-500">F</Text>
+      <Text className="text-left text-base font-semibold" style={{ color: theme.danger }}>F</Text>
     );
   if (set.type === "warmup")
     return (
-      <Text className="text-left text-base font-semibold text-yellow-400">
+      <Text className="text-left text-base font-semibold" style={{ color: theme.warning }}>
         W
       </Text>
     );
   if (set.type === "drop")
     return (
-      <Text className="text-left text-base font-semibold text-carbs">D</Text>
+      <Text className="text-left text-base font-semibold" style={{ color: theme.info }}>D</Text>
     );
   return (
-    <Text className="text-left text-base font-semibold text-text">
+    <Text className="text-left text-base font-semibold" style={{ color: theme.text }}>
       {setLabel(sets, set.id)}
     </Text>
   );
 }
 
 function Hdr({ label, className = "" }: { label: string; className?: string }) {
+  const { theme } = useAppTheme();
   return (
-    <Text className={`${className} text-sm font-medium text-muted`}>
+    <Text className={`${className} text-sm font-medium`} style={{ color: theme.textMuted }}>
       {label}
     </Text>
   );

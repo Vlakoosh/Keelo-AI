@@ -20,6 +20,7 @@ import { useIsFocused } from "@react-navigation/native";
 import { BottomPopup } from "@/components/bottom-popup";
 import { PageHeader } from "@/components/page-header";
 import { PrimaryButton } from "@/components/primary-button";
+import { EmptyState, SegmentedControl, StatTile, Tile } from "@/components/ui";
 import {
   consumePendingExerciseSelection,
   setPendingExerciseAddMode,
@@ -329,8 +330,11 @@ export function WorkoutPrototype() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-background px-6">
-        <Text className="text-lg font-semibold text-text">
+      <View
+        className="flex-1 items-center justify-center px-6"
+        style={{ backgroundColor: theme.canvas }}
+      >
+        <Text className="text-lg font-semibold" style={{ color: theme.text }}>
           Loading workout data...
         </Text>
       </View>
@@ -339,53 +343,22 @@ export function WorkoutPrototype() {
 
   if (view === "library") {
     return (
-      <View className="flex-1 bg-background">
-        <View className="flex-1" style={{ backgroundColor: theme.background }}>
+      <View className="flex-1" style={{ backgroundColor: theme.canvas }}>
+        <View className="flex-1" style={{ backgroundColor: theme.canvas }}>
           <PageHeader title="Workouts" />
           <ScrollView
             keyboardShouldPersistTaps="never"
             className="flex-1"
             contentContainerClassName="gap-6 px-5 pb-8 pt-5"
           >
-            <View className="flex-row">
-              <Pressable
-                onPress={() => setLibraryMode("tracker")}
-                className="flex-1 items-center border-b pb-3"
-                style={{
-                  borderBottomWidth: libraryMode === "tracker" ? 3 : 1,
-                  borderBottomColor:
-                    libraryMode === "tracker" ? theme.secondary : theme.border,
-                }}
-              >
-                <Text
-                  className="text-base font-semibold"
-                  style={{
-                    color: libraryMode === "tracker" ? theme.text : theme.muted,
-                  }}
-                >
-                  Tracker
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setLibraryMode("routines")}
-                className="flex-1 items-center border-b pb-3"
-                style={{
-                  borderBottomWidth: libraryMode === "routines" ? 3 : 1,
-                  borderBottomColor:
-                    libraryMode === "routines" ? theme.secondary : theme.border,
-                }}
-              >
-                <Text
-                  className="text-base font-semibold"
-                  style={{
-                    color:
-                      libraryMode === "routines" ? theme.text : theme.muted,
-                  }}
-                >
-                  Routines
-                </Text>
-              </Pressable>
-            </View>
+            <SegmentedControl
+              value={libraryMode}
+              onChange={setLibraryMode}
+              options={[
+                { label: "Tracker", value: "tracker" },
+                { label: "Routines", value: "routines" },
+              ]}
+            />
 
             {libraryMode === "tracker" ? (
               <>
@@ -405,13 +378,13 @@ export function WorkoutPrototype() {
                     setView("active");
                   }}
                   className="items-center justify-center rounded-card px-4 py-4"
-                  style={{ backgroundColor: theme.secondary }}
+                  style={{ backgroundColor: theme.primaryAccent }}
                 >
                   <Text
-                    className="text-base font-semibold uppercase tracking-[1px]"
-                    style={{ color: theme.textSecondary }}
+                    className="text-base font-semibold"
+                    style={{ color: theme.textOnAccent }}
                   >
-                    Start Empty Workout
+                    Start Workout
                   </Text>
                 </Pressable>
                 <View className="gap-4">
@@ -447,21 +420,11 @@ export function WorkoutPrototype() {
                         ))}
                       </View>
                     ) : (
-                      <View
-                        className="rounded-card px-4 py-5"
-                        style={{
-                          borderWidth: 1,
-                          borderColor: theme.quaternary,
-                          backgroundColor: theme.tertiary,
-                        }}
-                      >
-                        <Text
-                          className="text-sm"
-                          style={{ color: theme.muted }}
-                        >
-                          No workouts yet
-                        </Text>
-                      </View>
+                      <EmptyState
+                        title="No workouts yet"
+                        description="Start with a blank session and build momentum from there."
+                        icon="barbell-outline"
+                      />
                     )
                   ) : null}
                 </View>
@@ -471,13 +434,13 @@ export function WorkoutPrototype() {
                 <Pressable
                   onPress={() => router.push("/routines/create")}
                   className="items-center justify-center rounded-card px-4 py-4"
-                  style={{ backgroundColor: theme.secondary }}
+                  style={{ backgroundColor: theme.primaryAccent }}
                 >
                   <Text
-                    className="text-base font-semibold uppercase tracking-[1px]"
-                    style={{ color: theme.textSecondary }}
+                    className="text-base font-semibold"
+                    style={{ color: theme.textOnAccent }}
                   >
-                    Create New Routine
+                    Create Routine
                   </Text>
                 </Pressable>
                 <View className="gap-4">
@@ -514,21 +477,11 @@ export function WorkoutPrototype() {
                         ))}
                       </View>
                     ) : (
-                      <View
-                        className="rounded-card px-4 py-5"
-                        style={{
-                          borderWidth: 1,
-                          borderColor: theme.quaternary,
-                          backgroundColor: theme.tertiary,
-                        }}
-                      >
-                        <Text
-                          className="text-sm"
-                          style={{ color: theme.muted }}
-                        >
-                          No routines yet
-                        </Text>
-                      </View>
+                      <EmptyState
+                        title="No routines yet"
+                        description="Create a repeatable plan when you know what you want to do next."
+                        icon="list-outline"
+                      />
                     )
                   ) : null}
                 </View>
@@ -552,10 +505,10 @@ export function WorkoutPrototype() {
     );
   }
 
-  if (!session) return <View className="flex-1 bg-background" />;
+  if (!session) return <View className="flex-1" style={{ backgroundColor: theme.canvas }} />;
 
   return (
-    <View className="flex-1" style={{ backgroundColor: theme.background }}>
+    <View className="flex-1" style={{ backgroundColor: theme.canvas }}>
       <PageHeader
         title={view === "finish" ? "Workout Finished" : "Track Workout"}
         onBack={() =>
@@ -597,8 +550,9 @@ export function WorkoutPrototype() {
                 setSession((c) => (c ? { ...c, name: text } : c))
               }
               placeholder="Workout Name"
-              placeholderTextColor={theme.muted}
-              className="py-0 text-3xl font-semibold text-text"
+              placeholderTextColor={theme.textMuted}
+              className="py-0 text-3xl font-semibold"
+              style={{ color: theme.text }}
             />
             <TextInput
               multiline
@@ -607,29 +561,26 @@ export function WorkoutPrototype() {
                 setSession((c) => (c ? { ...c, notes: text } : c))
               }
               placeholder="Add notes or description"
-              placeholderTextColor={theme.muted}
+              placeholderTextColor={theme.textMuted}
               textAlignVertical="top"
-              className="min-h-[56px] px-0 py-2 text-base text-text"
+              className="min-h-[56px] px-0 py-2 text-base"
+              style={{ color: theme.text }}
             />
           </View>
-          <View className="flex-row border-y border-tertiary py-4">
+          <View className="flex-row gap-3">
             <Pressable
               className="flex-1"
               onPress={() => setSheet({ type: "duration" })}
             >
-              <Metric
+              <StatTile
                 label="Duration"
-                dividerColor={theme.tertiary}
                 value={fmt(secs)}
-                valueColor={theme.secondary}
+                variant="accent"
+                icon="time-outline"
               />
             </Pressable>
-            <Metric
-              label="Volume"
-              dividerColor={theme.tertiary}
-              value={`${sum.volume.toFixed(0)} kg`}
-            />
-            <Metric label="Sets" value={`${sum.sets}`} />
+            <StatTile label="Volume" value={`${sum.volume.toFixed(0)} kg`} icon="barbell-outline" />
+            <StatTile label="Sets" value={`${sum.sets}`} icon="checkmark-done-outline" />
           </View>
           {session.exercises.map((e) => (
             <ExerciseCard
@@ -707,17 +658,18 @@ export function WorkoutPrototype() {
               className="flex-1"
               onPress={() => setSheet({ type: "duration" })}
             >
-              <Metric
+              <StatTile
                 label="Duration"
                 value={fmt(secs)}
-                valueColor={theme.secondary}
+                variant="accent"
+                icon="time-outline"
               />
             </Pressable>
-            <Metric label="Volume" value={`${sum.volume.toFixed(0)} kg`} />
-            <Metric label="Sets" value={`${sum.sets}`} />
+            <StatTile label="Volume" value={`${sum.volume.toFixed(0)} kg`} icon="barbell-outline" />
+            <StatTile label="Sets" value={`${sum.sets}`} icon="checkmark-done-outline" />
           </View>
-          <View className="gap-3 border-b border-border pb-5">
-            <Text className="text-lg font-semibold text-text">
+          <Tile className="gap-3 p-5">
+            <Text className="text-lg font-semibold" style={{ color: theme.text }}>
               Session notes
             </Text>
             <TextInput
@@ -727,29 +679,31 @@ export function WorkoutPrototype() {
                 setSession((c) => (c ? { ...c, notes: text } : c))
               }
               placeholder="How did the session feel?"
-              placeholderTextColor={theme.muted}
+              placeholderTextColor={theme.textMuted}
               textAlignVertical="top"
-              className="min-h-[120px] rounded-card border border-border bg-background px-4 py-4 text-base text-text"
+              className="min-h-[120px] rounded-card px-4 py-4 text-base"
+              style={{ backgroundColor: theme.input, color: theme.text }}
             />
-          </View>
+          </Tile>
           <Pressable
             onPress={() => setSheet({ type: "photo" })}
-            className="gap-3 border-b border-border pb-5"
           >
+            <Tile className="gap-3 p-5">
             <View className="flex-row items-center justify-between">
-              <Text className="text-lg font-semibold text-text">
+              <Text className="text-lg font-semibold" style={{ color: theme.text }}>
                 Progress photo
               </Text>
-              <View className="rounded-card border border-yellow-500/30 bg-transparent px-3 py-1">
-                <Ionicons name="flash" size={14} color="#FCD34D" />
+              <View className="rounded-card px-3 py-1" style={{ backgroundColor: theme.warningSoft }}>
+                <Ionicons name="flash" size={14} color={theme.warning} />
               </View>
             </View>
-            <View className="h-40 items-center justify-center rounded-card border border-dashed border-border bg-background">
-              <Ionicons name="images-outline" size={28} color="#737373" />
-              <Text className="mt-3 text-sm text-muted">
+            <View className="h-40 items-center justify-center rounded-card" style={{ backgroundColor: theme.cardMuted }}>
+              <Ionicons name="images-outline" size={28} color={theme.iconMuted} />
+              <Text className="mt-3 text-sm" style={{ color: theme.textMuted }}>
                 Take with camera or select from gallery
               </Text>
             </View>
+            </Tile>
           </Pressable>
           <PrimaryButton
             label="Save workout"
@@ -809,6 +763,7 @@ function Popup({
   setTimerMode?: React.Dispatch<React.SetStateAction<"timer" | "stopwatch">>;
 }) {
   const router = useRouter();
+  const { theme } = useAppTheme();
   return (
     <BottomPopup
       visible={sheet.type !== "none"}
@@ -1036,56 +991,39 @@ function Popup({
       ) : null}
       {sheet.type === "timer" ? (
         <View className="gap-5">
-          <View className="flex-row gap-3">
-            <Pressable
-              onPress={() => {
-                setTimerMode?.("timer");
-                setToolRunning?.(false);
-                setToolSeconds?.((c) => (c === 0 ? 90 : c));
-              }}
-              className={`flex-1 rounded-card border px-4 py-3 ${timerMode === "timer" ? "border-accent bg-accent" : "border-white bg-background"}`}
-            >
-              <Text
-                className={`text-center text-sm font-semibold ${timerMode === "timer" ? "text-background" : "text-text"}`}
-              >
-                Timer
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setTimerMode?.("stopwatch");
-                setToolRunning?.(false);
-                setToolSeconds?.(0);
-              }}
-              className={`flex-1 rounded-card border px-4 py-3 ${timerMode === "stopwatch" ? "border-accent bg-accent" : "border-white bg-background"}`}
-            >
-              <Text
-                className={`text-center text-sm font-semibold ${timerMode === "stopwatch" ? "text-background" : "text-text"}`}
-              >
-                Stopwatch
-              </Text>
-            </Pressable>
-          </View>
+          <SegmentedControl
+            value={timerMode ?? "timer"}
+            onChange={(value) => {
+              setTimerMode?.(value);
+              setToolRunning?.(false);
+              setToolSeconds?.(value === "timer" ? 90 : 0);
+            }}
+            options={[
+              { label: "Timer", value: "timer" },
+              { label: "Stopwatch", value: "stopwatch" },
+            ]}
+          />
           <View className="items-center justify-center">
             <View className="w-full flex-row items-center justify-center">
               <View className="w-20 items-center">
                 {timerMode === "timer" ? (
                   <Pressable
                     onPress={() => setToolSeconds?.((c) => Math.max(0, c - 10))}
-                    className="h-11 flex-row items-center justify-center gap-2 rounded-card border border-white px-4"
+                    className="h-11 flex-row items-center justify-center gap-2 rounded-card px-4"
+                    style={{ backgroundColor: theme.cardMuted }}
                   >
-                    <Ionicons name="remove" size={18} color="#FAFAFA" />
-                    <Text className="text-sm font-semibold text-text">
+                    <Ionicons name="remove" size={18} color={theme.icon} />
+                    <Text className="text-sm font-semibold" style={{ color: theme.text }}>
                       -10s
                     </Text>
                   </Pressable>
                 ) : null}
               </View>
-              <View className="h-52 w-52 items-center justify-center rounded-full border border-border bg-background">
-                <Text className="text-4xl font-semibold text-text">
+              <View className="h-52 w-52 items-center justify-center rounded-full" style={{ backgroundColor: theme.cardMuted }}>
+                <Text className="text-4xl font-semibold" style={{ color: theme.text }}>
                   {fmt(toolSeconds ?? 0)}
                 </Text>
-                <Text className="mt-2 text-sm text-muted">
+                <Text className="mt-2 text-sm" style={{ color: theme.textMuted }}>
                   {timerMode === "timer" ? "Countdown" : "Elapsed time"}
                 </Text>
               </View>
@@ -1093,10 +1031,11 @@ function Popup({
                 {timerMode === "timer" ? (
                   <Pressable
                     onPress={() => setToolSeconds?.((c) => c + 10)}
-                    className="h-11 flex-row items-center justify-center gap-2 rounded-card border border-white px-4"
+                    className="h-11 flex-row items-center justify-center gap-2 rounded-card px-4"
+                    style={{ backgroundColor: theme.cardMuted }}
                   >
-                    <Ionicons name="add" size={18} color="#FAFAFA" />
-                    <Text className="text-sm font-semibold text-text">
+                    <Ionicons name="add" size={18} color={theme.icon} />
+                    <Text className="text-sm font-semibold" style={{ color: theme.text }}>
                       +10s
                     </Text>
                   </Pressable>
@@ -1213,10 +1152,7 @@ function ExerciseCard({
   const medals = getMedalMap(exercise);
   const displayUnit = exercise.sets[0]?.unit ?? "kg";
   return (
-    <View
-      className="gap-4 py-5"
-      style={{ borderBottomWidth: 1, borderBottomColor: theme.tertiary }}
-    >
+    <Tile className="gap-4 p-4">
       <View className="flex-row items-center justify-between gap-3">
         <Pressable
           onPress={() =>
@@ -1245,20 +1181,20 @@ function ExerciseCard({
         <View className="flex-row items-center gap-2">
           <Text
             className="text-sm font-medium"
-            style={{ color: theme.secondary }}
+            style={{ color: theme.primaryAccent }}
           >
             Rest Timer
           </Text>
           {activeRestSeconds !== null ? (
             <Text
               className="text-sm font-semibold"
-              style={{ color: theme.secondary }}
+              style={{ color: theme.primaryAccent }}
             >
               {fmt(activeRestSeconds)}
             </Text>
           ) : null}
         </View>
-        <Text className="text-sm" style={{ color: theme.secondary }}>
+        <Text className="text-sm" style={{ color: theme.primaryAccent }}>
           {exercise.restTimerSeconds === 0
             ? "OFF"
             : `${exercise.restTimerSeconds}s`}
@@ -1275,11 +1211,11 @@ function ExerciseCard({
             className="ml-2 w-20 flex-row items-center justify-center gap-1"
           >
             <Hdr label={displayUnit} className="text-center" />
-            <Ionicons name="swap-horizontal" size={12} color="#FF772C" />
+            <Ionicons name="swap-horizontal" size={12} color={theme.secondaryAccent} />
           </Pressable>
           <Hdr label="Reps" className="ml-2 w-20 text-center" />
           <View className="ml-2 w-14 items-center">
-            <Ionicons name="checkmark" size={16} color={theme.muted} />
+            <Ionicons name="checkmark" size={16} color={theme.iconMuted} />
           </View>
         </View>
         <View className="gap-3">
@@ -1312,17 +1248,17 @@ function ExerciseCard({
                       })
                 }
                 className="h-12 w-14 items-center justify-center rounded-card"
-                style={{ backgroundColor: theme.tertiary }}
+                style={{ backgroundColor: theme.cardMuted }}
               >
                 {medals[set.id] ? (
-                  <Ionicons name="trophy" size={18} color={theme.secondary} />
+                  <Ionicons name="trophy" size={18} color={theme.warning} />
                 ) : (
                   <SetIndicator set={set} sets={exercise.sets} />
                 )}
               </Pressable>
               <View
                 className="ml-2 h-12 flex-1 items-center justify-center rounded-card px-3"
-                style={{ backgroundColor: theme.quaternary }}
+                style={{ backgroundColor: theme.input }}
               >
                 <Text
                   className="text-center text-sm"
@@ -1334,9 +1270,7 @@ function ExerciseCard({
               <View
                 className="ml-2 h-12 w-20 justify-center rounded-card px-3"
                 style={{
-                  borderWidth: 1,
-                  borderColor: theme.quaternary,
-                  backgroundColor: theme.primary,
+                  backgroundColor: theme.input,
                 }}
               >
                 <TextInput
@@ -1351,15 +1285,13 @@ function ExerciseCard({
                   className="py-0 text-center text-base font-semibold"
                   style={{ color: theme.text }}
                   placeholder={set.weightPlaceholder || "0"}
-                  placeholderTextColor={theme.muted}
+                  placeholderTextColor={theme.textMuted}
                 />
               </View>
               <View
                 className="ml-2 h-12 w-20 justify-center rounded-card px-3"
                 style={{
-                  borderWidth: 1,
-                  borderColor: theme.quaternary,
-                  backgroundColor: theme.primary,
+                  backgroundColor: theme.input,
                 }}
               >
                 <TextInput
@@ -1374,7 +1306,7 @@ function ExerciseCard({
                   className="py-0 text-center text-base font-semibold"
                   style={{ color: theme.text }}
                   placeholder={set.repsPlaceholder || "0"}
-                  placeholderTextColor={theme.muted}
+                  placeholderTextColor={theme.textMuted}
                 />
               </View>
               <View className="ml-2 w-14 items-center">
@@ -1382,17 +1314,13 @@ function ExerciseCard({
                   onPress={() => onCheck(set.id, !set.completed)}
                   className="h-12 w-14 items-center justify-center rounded-card"
                   style={{
-                    borderWidth: 1,
-                    borderColor: set.completed
-                      ? theme.secondary
-                      : theme.quaternary,
-                    backgroundColor: theme.primary,
+                    backgroundColor: set.completed ? theme.completed : theme.input,
                   }}
                 >
                   <Ionicons
                     name="checkmark"
                     size={18}
-                    color={theme.secondary}
+                    color={set.completed ? theme.textOnAccent : theme.iconMuted}
                   />
                 </Pressable>
               </View>
@@ -1401,7 +1329,7 @@ function ExerciseCard({
         </View>
       </View>
       <PrimaryButton label="Add set" variant="secondary" onPress={addSet} />
-    </View>
+    </Tile>
   );
 }
 
@@ -1414,20 +1342,13 @@ function HistoryTile({
 }) {
   const { theme } = useAppTheme();
   return (
-    <View
-      className="rounded-card px-4 py-4"
-      style={{
-        borderWidth: 1,
-        borderColor: theme.quaternary,
-        backgroundColor: theme.tertiary,
-      }}
-    >
+    <Tile className="px-4 py-4">
       <View className="flex-row items-start justify-between gap-3">
         <View className="flex-1">
           <Text className="text-xl font-semibold" style={{ color: theme.text }}>
             {item.name}
           </Text>
-          <Text className="mt-2 text-sm" style={{ color: theme.muted }}>
+          <Text className="mt-2 text-sm" style={{ color: theme.textMuted }}>
             Exercises
           </Text>
         </View>
@@ -1442,31 +1363,31 @@ function HistoryTile({
         numberOfLines={2}
         ellipsizeMode="tail"
         className="mt-2 text-sm leading-6"
-        style={{ color: theme.muted }}
+        style={{ color: theme.textMuted }}
       >
         {item.exercisePreview.join(", ")}
       </Text>
       <View
         className="mt-4 pt-4"
-        style={{ borderTopWidth: 1, borderTopColor: theme.quaternary }}
+        style={{ borderTopWidth: 1, borderTopColor: theme.hairline }}
       >
         <View className="flex-row">
           <Metric
             label="Duration"
             value={fmt(item.durationSeconds)}
             className=""
-            dividerColor={theme.quaternary}
+            dividerColor={theme.hairline}
           />
           <Metric
             label="Sets"
             value={`${item.setCount}`}
             className=""
-            dividerColor={theme.quaternary}
+            dividerColor={theme.hairline}
           />
           <Metric label="Weight" value={`${item.totalWeight.toFixed(0)} kg`} />
         </View>
       </View>
-    </View>
+    </Tile>
   );
 }
 
@@ -1481,20 +1402,13 @@ function RoutineTile({
 }) {
   const { theme } = useAppTheme();
   return (
-    <View
-      className="rounded-card px-4 py-4"
-      style={{
-        borderWidth: 1,
-        borderColor: theme.quaternary,
-        backgroundColor: theme.tertiary,
-      }}
-    >
+    <Tile className="px-4 py-4">
       <View className="flex-row items-start justify-between gap-3">
         <View className="flex-1">
           <Text className="text-xl font-semibold" style={{ color: theme.text }}>
             {routine.name}
           </Text>
-          <Text className="mt-2 text-sm" style={{ color: theme.muted }}>
+          <Text className="mt-2 text-sm" style={{ color: theme.textMuted }}>
             Exercises
           </Text>
         </View>
@@ -1509,18 +1423,18 @@ function RoutineTile({
         numberOfLines={2}
         ellipsizeMode="tail"
         className="mt-2 text-sm leading-6"
-        style={{ color: theme.muted }}
+        style={{ color: theme.textMuted }}
       >
         {routine.exercisePreview.join(", ")}
       </Text>
       <View className="mt-4">
         <PrimaryButton
-          label="START ROUTINE"
+          label="Start routine"
           variant="secondary"
           onPress={onStart}
         />
       </View>
-    </View>
+    </Tile>
   );
 }
 
@@ -1535,6 +1449,7 @@ function WeightSheet({
   setSession?: PopupProps["setSession"];
   setSheet: (sheet: Sheet) => void;
 }) {
+  const { theme } = useAppTheme();
   const exercise = session?.exercises.find((e) => e.id === sheet.exerciseId);
   const [unit, setUnit] = useState<WeightUnit>(exercise?.sets[0]?.unit ?? "kg");
   const [ratio, setRatio] = useState<1 | 0.5>(
@@ -1548,19 +1463,23 @@ function WeightSheet({
           <Pressable
             key={u}
             onPress={() => setUnit(u)}
-            className={`flex-1 rounded-card border px-4 py-3 ${unit === u ? "border-accent bg-accent" : "border-white bg-background"}`}
+            className="flex-1 rounded-card px-4 py-3"
+            style={{
+              backgroundColor: unit === u ? theme.primaryAccent : theme.cardMuted,
+            }}
           >
             <Text
-              className={`text-center text-sm font-semibold ${unit === u ? "text-background" : "text-text"}`}
+              className="text-center text-sm font-semibold"
+              style={{ color: unit === u ? theme.textOnAccent : theme.text }}
             >
               {u.toUpperCase()}
             </Text>
           </Pressable>
         ))}
       </View>
-      <View className="gap-3 rounded-card border border-border bg-background p-4">
+      <Tile variant="muted" className="gap-3 p-4">
         <View className="flex-row items-center justify-between">
-          <Text className="text-base font-semibold text-text">
+          <Text className="text-base font-semibold" style={{ color: theme.text }}>
             Use 1x machine ratio
           </Text>
           <Switch
@@ -1568,11 +1487,11 @@ function WeightSheet({
             onValueChange={(v) => setRatio(v ? 1 : 0.5)}
           />
         </View>
-        <Text className="text-sm leading-6 text-muted">
+        <Text className="text-sm leading-6" style={{ color: theme.textMuted }}>
           Toggle to 0.5x when the cable machine uses a doubled pulley ratio and
           you want the app to calculate the effective load in half.
         </Text>
-      </View>
+      </Tile>
       <PrimaryButton
         label="Apply preferences"
         onPress={() => {
@@ -1682,13 +1601,13 @@ function RestSheet({
         </ScrollView>
         <LinearGradient
           pointerEvents="none"
-          colors={[theme.background, "rgba(0,0,0,0)"]}
+          colors={[theme.card, theme.transparent]}
           className="absolute inset-x-0 top-0"
           style={{ height: REST_SPACER }}
         />
         <LinearGradient
           pointerEvents="none"
-          colors={["rgba(0,0,0,0)", theme.background]}
+          colors={[theme.transparent, theme.card]}
           className="absolute inset-x-0 bottom-0"
           style={{ height: REST_SPACER }}
         />
@@ -1954,13 +1873,13 @@ function WheelPicker<T extends string | number>({
       </ScrollView>
       <LinearGradient
         pointerEvents="none"
-        colors={[theme.background, "rgba(0,0,0,0)"]}
+        colors={[theme.card, theme.transparent]}
         className="absolute inset-x-0 top-0"
         style={{ height: REST_SPACER }}
       />
       <LinearGradient
         pointerEvents="none"
-        colors={["rgba(0,0,0,0)", theme.background]}
+        colors={[theme.transparent, theme.card]}
         className="absolute inset-x-0 bottom-0"
         style={{ height: REST_SPACER }}
       />
@@ -1975,12 +1894,14 @@ function NotesField({
   value: string;
   onChangeText: (text: string) => void;
 }) {
+  const { theme } = useAppTheme();
   const [focused, setFocused] = useState(false);
   const hasValue = value.trim().length > 0;
 
   return (
     <View
-      className={`relative border-b border-border ${focused || hasValue ? "min-h-[72px]" : "min-h-[44px]"}`}
+      className={`relative rounded-card px-3 ${focused || hasValue ? "min-h-[72px]" : "min-h-[44px]"}`}
+      style={{ backgroundColor: theme.input }}
     >
       <TextInput
         multiline
@@ -1989,11 +1910,11 @@ function NotesField({
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         textAlignVertical="top"
-        style={{ textAlignVertical: "top" }}
-        className={`${focused || hasValue ? "min-h-[72px] pb-6 pt-2" : "min-h-[44px] py-2"} px-0 text-base text-text`}
+        className={`${focused || hasValue ? "min-h-[72px] pb-6 pt-2" : "min-h-[44px] py-2"} px-0 text-base`}
+        style={{ color: theme.text, textAlignVertical: "top" }}
       />
       {!focused ? (
-        <Text className="absolute bottom-2 left-0 text-sm text-[#5C5C5C]">
+        <Text className="absolute bottom-2 left-3 text-sm" style={{ color: theme.textMuted }}>
           Add notes here
         </Text>
       ) : null}
@@ -2011,13 +1932,13 @@ function SetIndicator({
   const { theme } = useAppTheme();
   if (set.type === "failure") {
     return (
-      <Text className="text-left text-base font-semibold text-red-500">F</Text>
+      <Text className="text-left text-base font-semibold" style={{ color: theme.danger }}>F</Text>
     );
   }
 
   if (set.type === "warmup") {
     return (
-      <Text className="text-left text-base font-semibold text-yellow-400">
+      <Text className="text-left text-base font-semibold" style={{ color: theme.warning }}>
         W
       </Text>
     );
@@ -2025,7 +1946,7 @@ function SetIndicator({
 
   if (set.type === "drop") {
     return (
-      <Text className="text-left text-base font-semibold text-carbs">D</Text>
+      <Text className="text-left text-base font-semibold" style={{ color: theme.info }}>D</Text>
     );
   }
 
@@ -2068,7 +1989,7 @@ function Metric({
       >
         {value}
       </Text>
-      <Text className="mt-2 text-sm" style={{ color: theme.muted }}>
+      <Text className="mt-2 text-sm" style={{ color: theme.textMuted }}>
         {label}
       </Text>
     </View>

@@ -72,18 +72,19 @@ export function AppTabBar({
       className="px-3 pt-2"
       style={{
         paddingBottom: Math.max(insets.bottom, 12),
-        borderTopWidth: 1,
-        borderTopColor: theme.border,
-        backgroundColor: theme.background,
+        backgroundColor: theme.canvas,
       }}
     >
       {shouldShowActiveWorkout ? (
         <View
           className="mb-3 flex-row items-center gap-3 rounded-card px-4 py-3"
           style={{
-            borderWidth: 1,
-            borderColor: theme.quaternary,
-            backgroundColor: theme.tertiary,
+            backgroundColor: theme.card,
+            shadowColor: theme.shadow,
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: theme.mode === "light" ? 0.1 : 0,
+            shadowRadius: 14,
+            elevation: theme.mode === "light" ? 3 : 0,
           }}
         >
           <Pressable
@@ -136,11 +137,21 @@ export function AppTabBar({
             }}
             className="h-10 w-10 items-center justify-center"
           >
-            <Ionicons name="close" size={18} color="#EF4444" />
+            <Ionicons name="close" size={18} color={theme.destructive} />
           </Pressable>
         </View>
       ) : null}
-      <View className="flex-row gap-2">
+      <View
+        className="flex-row gap-2 rounded-card p-1"
+        style={{
+          backgroundColor: theme.card,
+          shadowColor: theme.shadow,
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: theme.mode === "light" ? 0.1 : 0,
+          shadowRadius: 18,
+          elevation: theme.mode === "light" ? 4 : 0,
+        }}
+      >
         {visibleRoutes.map((route) => {
           const index = state.routes.findIndex(
             (item) => item.key === route.key,
@@ -155,7 +166,7 @@ export function AppTabBar({
               <Ionicons
                 name={tabIcons[route.name] ?? "ellipse-outline"}
                 size={20}
-                color={isFocused ? theme.secondary : theme.muted}
+                color={isFocused ? theme.primaryAccent : theme.iconMuted}
               />
             </Pressable>
           );
